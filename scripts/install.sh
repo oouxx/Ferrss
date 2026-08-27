@@ -4,7 +4,7 @@
 
 set -e
 
-REPO="nashsu/autocli"
+REPO="oouxx/ferrss"
 INSTALL_DIR="/usr/local/bin"
 BINARY_NAME="autocli"
 
