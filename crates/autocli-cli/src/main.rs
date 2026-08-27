@@ -18,7 +18,7 @@ use std::str::FromStr;
 use tracing_subscriber::EnvFilter;
 
 use crate::args::coerce_and_validate_args;
-use crate::commands::{completion, doctor, read};
+use crate::commands::{completion, doctor, mcp, read};
 use crate::execution::execute_command;
 
 fn build_cli(registry: &Registry, external_clis: &[ExternalCli]) -> Command {
@@ -132,6 +132,10 @@ fn build_cli(registry: &Registry, external_clis: &[ExternalCli]) -> Command {
                 .arg(Arg::new("model").long("model").help("LLM model name"))
                 .arg(Arg::new("api-key").long("api-key").help("LLM API key"))
                 .arg(Arg::new("show").long("show").action(ArgAction::SetTrue).help("Print current LLM config without changing it")),
+        )
+        .subcommand(
+            Command::new("mcp")
+                .about("Run an MCP server over stdio (expose adapter commands as tools to agents)"),
         )
         .subcommand(
             Command::new("read")
@@ -471,6 +475,13 @@ async fn main() {
                     .expect("shell argument required");
                 let mut app = build_cli(&registry, &external_clis);
                 completion::run_completion(&mut app, shell);
+                return;
+            }
+            "mcp" => {
+                match mcp::run_mcp(&registry).await {
+                    Ok(()) => {}
+                    Err(e) => { print_error(&e); std::process::exit(1); }
+                }
                 return;
             }
             "config-llm" => {
