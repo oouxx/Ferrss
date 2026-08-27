@@ -3,9 +3,10 @@
 //! and sends it to an LLM to generate a precise YAML adapter.
 
 use autocli_core::{CliError, IPage};
-use serde_json::{json, Value};
+use serde_json::Value;
 use tracing::{debug, info};
 
+use crate::config::LlmConfig;
 use crate::explore::detect_site_name;
 use crate::llm::generate_with_llm;
 
@@ -401,7 +402,7 @@ pub async fn generate_with_ai(
     page: &dyn IPage,
     url: &str,
     goal: &str,
-    token: &str,
+    llm: &LlmConfig,
 ) -> Result<(String, String, String), CliError> {
     // Step 1: Capture page data
     eprintln!("{}", if is_chinese_locale() { "📡 正在采集页面数据..." } else { "📡 Capturing page data..." });
@@ -410,9 +411,9 @@ pub async fn generate_with_ai(
     // Step 2: Detect site name
     let site = detect_site_name(url);
 
-    // Step 3: Send to LLM via server API
+    // Step 3: Send to user-configured LLM
     eprintln!("{}", if is_chinese_locale() { "🤖 正在发送至 AI 分析..." } else { "🤖 Sending to AI for analysis..." });
-    let yaml = generate_with_llm(token, &captured, goal, &site).await?;
+    let yaml = generate_with_llm(llm, &captured, goal, &site).await?;
 
     // Step 4: Force site and name fields to match our detected values
     let mut fixed_yaml = yaml.clone();

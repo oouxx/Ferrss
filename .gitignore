@@ -3,3 +3,4 @@
 /opencli
 test-results*.md
 twitter-downloads/
+.DS_Store

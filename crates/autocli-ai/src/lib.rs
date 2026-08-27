@@ -20,6 +20,6 @@ pub use types::{
     ExploreResult, FieldInfo, InferredCapability, RecommendedArg, ResponseAnalysis,
     StoreHint, StoreInfo, StrategyTestResult, SynthesizeOptions,
 };
-pub use config::{load_config, save_config, config_path, api_base, search_url, upload_url, command_config_url, user_agent, Config, LlmConfig};
+pub use config::{load_config, save_config, config_path, user_agent, provider_endpoint, Config, LlmConfig};
 pub use ai_generate::generate_with_ai;
 pub use url_pattern::url_to_pattern;

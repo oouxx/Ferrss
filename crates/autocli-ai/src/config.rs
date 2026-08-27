@@ -4,38 +4,27 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-const DEFAULT_API_BASE: &str = "https://www.autocli.ai";
-
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Config {
     #[serde(default)]
     pub llm: LlmConfig,
-    /// AutoCLI token for authenticated API access
-    #[serde(default, skip_serializing_if = "Option::is_none", rename = "autocli-token")]
-    pub autocli_token: Option<String>,
 }
 
-/// Get the AutoCLI server base URL from env var or default.
-pub fn api_base() -> String {
-    std::env::var("AUTOCLI_API_BASE")
-        .unwrap_or_else(|_| DEFAULT_API_BASE.to_string())
-        .trim_end_matches('/')
-        .to_string()
-}
-
-/// Get the search endpoint URL
-pub fn search_url(pattern: &str) -> String {
-    format!("{}/api/sites/cli/search?url={}", api_base(), urlencoding::encode(pattern))
-}
-
-/// Get the upload endpoint URL
-pub fn upload_url() -> String {
-    format!("{}/api/sites/upload", api_base())
-}
-
-/// Get the command config endpoint URL
-pub fn command_config_url(command_uuid: &str) -> String {
-    format!("{}/api/sites/commands/{}/config", api_base(), command_uuid)
+/// Map a provider name to a default OpenAI-compatible chat completions endpoint.
+/// Any value that looks like a URL (starts with "http") is passed through as-is.
+pub fn provider_endpoint(provider: &str) -> String {
+    match provider.trim().to_lowercase().as_str() {
+        "openai" => "https://api.openai.com/v1/chat/completions".to_string(),
+        "deepseek" => "https://api.deepseek.com/v1/chat/completions".to_string(),
+        "qwen" | "dashscope" => "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions".to_string(),
+        "moonshot" | "kimi" => "https://api.moonshot.cn/v1/chat/completions".to_string(),
+        "zhipu" | "glm" => "https://open.bigmodel.cn/api/paas/v4/chat/completions".to_string(),
+        "groq" => "https://api.groq.com/openai/v1/chat/completions".to_string(),
+        "mistral" => "https://api.mistral.ai/v1/chat/completions".to_string(),
+        "ollama" => "http://localhost:11434/v1/chat/completions".to_string(),
+        "lmstudio" => "http://localhost:1234/v1/chat/completions".to_string(),
+        other => other.trim().to_string(),
+    }
 }
 
 /// Build User-Agent string: autocli/{version} ({os}; {arch}; {lang})
