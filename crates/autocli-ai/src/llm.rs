@@ -9,6 +9,20 @@ use tracing::{debug, info};
 
 use crate::config::LlmConfig;
 
+/// Resolve the API key: prefer config `llm.apikey`, otherwise fall back to the
+/// `OLLAMA_API_KEY` environment variable.
+fn resolve_api_key(llm: &LlmConfig) -> String {
+    if let Some(k) = &llm.apikey {
+        if !k.trim().is_empty() {
+            return k.clone();
+        }
+    }
+    std::env::var("OLLAMA_API_KEY")
+        .unwrap_or_default()
+        .trim()
+        .to_string()
+}
+
 /// Send captured page data to the configured LLM provider and get back a YAML adapter.
 pub async fn generate_with_llm(
     llm: &LlmConfig,
@@ -27,8 +41,9 @@ pub async fn generate_with_llm(
         .modelname
         .clone()
         .unwrap_or_default();
+    let api_key = resolve_api_key(llm);
 
-    info!(endpoint = %endpoint, "Calling LLM for adapter generation");
+    info!(endpoint = %endpoint, model = %model, has_key = !api_key.is_empty(), "Calling LLM for adapter generation");
 
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(300))
@@ -51,12 +66,9 @@ pub async fn generate_with_llm(
         "temperature": 0.2,
     });
 
-    if let Some(k) = &llm.apikey {
-        if !k.is_empty() {
-            body["max_tokens"] = json!(4096);
-        }
+    if !api_key.is_empty() {
+        body["max_tokens"] = json!(4096);
     }
-    let _ = body; // keep temperature/max_tokens simple
 
     let mut req = client
         .post(&endpoint)
@@ -64,10 +76,8 @@ pub async fn generate_with_llm(
         .header("User-Agent", crate::config::user_agent())
         .json(&body);
 
-    if let Some(k) = &llm.apikey {
-        if !k.is_empty() {
-            req = req.bearer_auth(k);
-        }
+    if !api_key.is_empty() {
+        req = req.bearer_auth(&api_key);
     }
 
     let resp = req.send().await.map_err(|e| CliError::Http {
@@ -215,4 +225,44 @@ fn build_prompt(captured_data: &Value, goal: &str, site: &str) -> String {
     format!(
         "Site: {site}\nGoal: {goal}\n\nGenerate an autocli adapter YAML for the \"{goal}\" data of this site.\n\nCaptured page data (JSON):\n{captured_str}"
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::LlmConfig;
+
+    #[test]
+    fn test_resolve_api_key_prefers_config() {
+        let llm = LlmConfig {
+            apikey: Some("cfg-key".into()),
+            ..Default::default()
+        };
+        std::env::set_var("OLLAMA_API_KEY", "env-key");
+        assert_eq!(resolve_api_key(&llm), "cfg-key");
+        std::env::remove_var("OLLAMA_API_KEY");
+    }
+
+    #[test]
+    fn test_resolve_api_key_falls_back_to_env() {
+        let llm = LlmConfig { apikey: None, ..Default::default() };
+        std::env::set_var("OLLAMA_API_KEY", "env-key");
+        assert_eq!(resolve_api_key(&llm), "env-key");
+        std::env::remove_var("OLLAMA_API_KEY");
+    }
+
+    #[test]
+    fn test_resolve_api_key_ignores_empty_config() {
+        let llm = LlmConfig { apikey: Some("   ".into()), ..Default::default() };
+        std::env::set_var("OLLAMA_API_KEY", "env-key");
+        assert_eq!(resolve_api_key(&llm), "env-key");
+        std::env::remove_var("OLLAMA_API_KEY");
+    }
+
+    #[test]
+    fn test_resolve_api_key_empty_when_nothing_set() {
+        let llm = LlmConfig { apikey: None, ..Default::default() };
+        std::env::remove_var("OLLAMA_API_KEY");
+        assert_eq!(resolve_api_key(&llm), "");
+    }
 }
