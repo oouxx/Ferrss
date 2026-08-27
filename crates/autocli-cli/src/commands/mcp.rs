@@ -1,11 +1,19 @@
-//! MCP (Model Context Protocol) server over stdio.
+//! MCP (Model Context Protocol) server over stdio, using the "three meta-tool"
+//! progressive-discovery pattern.
 //!
-//! Exposes every autocli adapter command as an MCP tool, so MCP clients
-//! (Claude, Cursor, etc.) can call `autocli` directly. Implements the
-//! JSON-RPC 2.0 method set: initialize, tools/list, tools/call, ping,
-//! shutdown. Line-delimited JSON on stdin/stdout.
+//! Instead of dumping all ~300 adapter commands into `tools/list` (which would
+//! burn tens of thousands of tokens in context), we expose only three meta-tools:
+//!
+//!   searchTools(query)          -> BM25 keyword search; returns names + short
+//!                                  descriptions only (no full schema)
+//!   getToolDefinition(name)     -> lazily fetch the full JSON schema for one tool
+//!   useTool(name, arguments)    -> execute a tool
+//!
+//! An agent discovers tools progressively: search -> inspect schema -> call.
+//! Implements JSON-RPC 2.0 (initialize, tools/list, tools/call, ping, shutdown)
+//! over newline-delimited stdio.
 
-use autocli_core::{ArgType, CliError, Registry};
+use autocli_core::{ArgType, CliError, CliCommand, Registry};
 use serde_json::{json, Value};
 use std::collections::HashMap;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
@@ -13,7 +21,55 @@ use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 const PROTOCOL_VERSION: &str = "2024-11-05";
 const SERVER_NAME: &str = "autocli";
 
-/// Map an ArgType to a JSON Schema type string.
+// ── Tool index ───────────────────────────────────────────────────
+
+/// A searchable entry for one adapter command.
+struct ToolEntry {
+    tool_name: String, // "site_cmd"
+    site: String,
+    cmd_name: String,
+    description: String,
+    doc: String, // lowercased searchable text
+}
+
+fn tool_entries(registry: &Registry) -> Vec<ToolEntry> {
+    let mut entries = Vec::new();
+    for site in registry.list_sites() {
+        for cmd in registry.list_commands(site) {
+            let tool_name = format!("{}_{}", site, cmd.name);
+            let doc = format!(
+                "{} {} {} {}",
+                site,
+                cmd.name,
+                tool_name,
+                cmd.description
+            )
+            .to_lowercase();
+            entries.push(ToolEntry {
+                tool_name,
+                site: site.to_string(),
+                cmd_name: cmd.name.clone(),
+                description: cmd.description.clone(),
+                doc,
+            });
+        }
+    }
+    entries
+}
+
+fn find_tool<'a>(registry: &'a Registry, name: &str) -> Option<(&'a str, &'a CliCommand)> {
+    for site in registry.list_sites() {
+        for cmd in registry.list_commands(site) {
+            if format!("{}_{}", site, cmd.name) == name {
+                return Some((site, cmd));
+            }
+        }
+    }
+    None
+}
+
+// ── JSON Schema helpers ─────────────────────────────────────────
+
 fn schema_type(t: ArgType) -> &'static str {
     match t {
         ArgType::Str => "string",
@@ -23,53 +79,142 @@ fn schema_type(t: ArgType) -> &'static str {
     }
 }
 
-/// Build the list of MCP tool definitions from the adapter registry.
-fn build_tools(registry: &Registry) -> Vec<Value> {
-    let mut tools = Vec::new();
-    for site in registry.list_sites() {
-        for cmd in registry.list_commands(site) {
-            let name = format!("{}_{}", site, cmd.name);
-            let mut properties = serde_json::Map::new();
-            let mut required: Vec<Value> = Vec::new();
-
-            for arg in &cmd.args {
-                let mut prop = json!({
-                    "type": schema_type(arg.arg_type),
-                });
-                if let Some(desc) = &arg.description {
-                    prop["description"] = Value::String(desc.clone());
-                }
-                if let Some(def) = &arg.default {
-                    prop["default"] = def.clone();
-                }
-                if let Some(choices) = &arg.choices {
-                    prop["enum"] = Value::Array(choices.iter().map(|c| Value::String(c.clone())).collect());
-                }
-                properties.insert(arg.name.clone(), prop);
-                if arg.required {
-                    required.push(Value::String(arg.name.clone()));
-                }
-            }
-
-            tools.push(json!({
-                "name": name,
-                "description": cmd.description,
-                "inputSchema": {
-                    "type": "object",
-                    "properties": properties,
-                    "required": required,
-                },
-            }));
+/// Full tool definition (description + inputSchema) for one command.
+fn tool_definition(site: &str, cmd: &CliCommand) -> Value {
+    let mut properties = serde_json::Map::new();
+    let mut required: Vec<Value> = Vec::new();
+    for arg in &cmd.args {
+        let mut prop = json!({ "type": schema_type(arg.arg_type) });
+        if let Some(desc) = &arg.description {
+            prop["description"] = Value::String(desc.clone());
+        }
+        if let Some(def) = &arg.default {
+            prop["default"] = def.clone();
+        }
+        if let Some(choices) = &arg.choices {
+            prop["enum"] = Value::Array(choices.iter().map(|c| Value::String(c.clone())).collect());
+        }
+        properties.insert(arg.name.clone(), prop);
+        if arg.required {
+            required.push(Value::String(arg.name.clone()));
         }
     }
-    tools
+    json!({
+        "name": format!("{}_{}", site, cmd.name),
+        "description": cmd.description,
+        "site": site,
+        "command": cmd.name,
+        "inputSchema": {
+            "type": "object",
+            "properties": properties,
+            "required": required,
+        },
+    })
 }
+
+/// The three meta-tools exposed in tools/list.
+fn build_meta_tools() -> Vec<Value> {
+    vec![
+        json!({
+            "name": "searchTools",
+            "description": "Search the available autocli tools by keyword. Returns matching tool names and short descriptions (NOT full schemas). Use this first to discover what tools exist.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "query": { "type": "string", "description": "Search keywords, e.g. 'bilibili hot' or 'stock finance'" },
+                    "limit": { "type": "integer", "description": "Max results (default 20)", "default": 20 }
+                },
+                "required": ["query"]
+            }
+        }),
+        json!({
+            "name": "getToolDefinition",
+            "description": "Get the full JSON schema / definition for a specific tool by name (e.g. 'jiuyangongshe_hot'). Call this after searchTools to see a tool's required arguments.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "name": { "type": "string", "description": "Tool name, e.g. 'jiuyangongshe_hot'" }
+                },
+                "required": ["name"]
+            }
+        }),
+        json!({
+            "name": "useTool",
+            "description": "Execute an autocli tool by name with arguments. Call getToolDefinition first to learn the argument schema.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "name": { "type": "string", "description": "Tool name, e.g. 'jiuyangongshe_hot'" },
+                    "arguments": { "type": "object", "description": "Arguments for the tool (see getToolDefinition)", "default": {} }
+                },
+                "required": ["name"]
+            }
+        }),
+    ]
+}
+
+// ── BM25 search ─────────────────────────────────────────────────
+
+fn tokenize(s: &str) -> Vec<String> {
+    s.split_whitespace()
+        .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric()).to_lowercase())
+        .filter(|w| !w.is_empty())
+        .collect()
+}
+
+/// BM25 keyword search over tool names/descriptions. Returns [{name, description}].
+fn bm25_search(entries: &[ToolEntry], query: &str, top_n: usize) -> Vec<Value> {
+    if entries.is_empty() {
+        return vec![];
+    }
+    let n = entries.len() as f64;
+    let avgdl = entries.iter().map(|e| e.doc.split_whitespace().count() as f64).sum::<f64>() / n;
+    let terms = tokenize(query);
+    if terms.is_empty() {
+        return vec![];
+    }
+
+    let k1 = 1.2f64;
+    let b = 0.75f64;
+
+    let mut scored: Vec<(f64, &ToolEntry)> = Vec::new();
+    for e in entries {
+        let mut score = 0.0f64;
+        for t in &terms {
+            let f = e.doc.split_whitespace().filter(|w| *w == t.as_str()).count() as f64;
+            if f == 0.0 {
+                continue;
+            }
+            let n_t = entries
+                .iter()
+                .filter(|x| x.doc.split_whitespace().any(|w| w == t.as_str()))
+                .count()
+                .max(1) as f64;
+            let idf = (1.0 + (n - n_t + 0.5) / (n_t + 0.5)).ln();
+            let dl = e.doc.split_whitespace().count() as f64;
+            let tf = (f * (k1 + 1.0)) / (f + k1 * (1.0 - b + b * dl / avgdl));
+            score += idf * tf;
+        }
+        if score > 0.0 {
+            scored.push((score, e));
+        }
+    }
+
+    scored.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+    scored.truncate(top_n);
+    scored
+        .into_iter()
+        .map(|(_, e)| json!({ "name": e.tool_name, "description": e.description }))
+        .collect()
+}
+
+// ── Tool execution ──────────────────────────────────────────────
 
 /// Coerce a client-provided JSON value to the command's declared arg type.
 fn coerce_value(name: &str, v: Value, t: ArgType) -> Result<Value, String> {
     match t {
         ArgType::Int => match &v {
-            Value::Number(n) => Ok(Value::Number(n.as_i64().map(|i| i.into()).unwrap_or_else(|| n.clone()))),
+            Value::Number(_) => Ok(v),
             Value::String(s) => s
                 .trim()
                 .parse::<i64>()
@@ -95,31 +240,15 @@ fn coerce_value(name: &str, v: Value, t: ArgType) -> Result<Value, String> {
             },
             _ => Err(format!("argument '{}' must be a boolean", name)),
         },
-        ArgType::Str => Ok(match v {
-            Value::String(s) => Value::String(s),
-            other => other,
-        }),
+        ArgType::Str => Ok(v),
     }
 }
 
-/// Execute an MCP tools/call against a command in the registry.
 async fn call_tool(registry: &Registry, name: &str, arguments: &Value) -> Result<Value, Value> {
-    // Find the command whose tool name matches.
-    let mut found: Option<(&str, &autocli_core::CliCommand)> = None;
-    'outer: for site in registry.list_sites() {
-        for cmd in registry.list_commands(site) {
-            if format!("{}_{}", site, cmd.name) == name {
-                found = Some((site, cmd));
-                break 'outer;
-            }
-        }
-    }
-
-    let (site, cmd) = found.ok_or_else(|| {
+    let (site, cmd) = find_tool(registry, name).ok_or_else(|| {
         json!({ "content": [{ "type": "text", "text": format!("Unknown tool: {}", name) }], "isError": true })
     })?;
 
-    // Build kwargs from arguments, validating required args and coercing types.
     let args_obj = arguments.as_object().cloned().unwrap_or_default();
     let mut kwargs: HashMap<String, Value> = HashMap::new();
     for arg in &cmd.args {
@@ -156,14 +285,12 @@ async fn call_tool(registry: &Registry, name: &str, arguments: &Value) -> Result
     }
 }
 
-/// Handle a single JSON-RPC message, returning an optional response.
-/// Returns None for notifications (no response expected).
+// ── JSON-RPC dispatch ───────────────────────────────────────────
+
 async fn handle_message(msg: &Value, registry: &Registry) -> Result<Option<Value>, CliError> {
     let id = msg.get("id").cloned();
     let method = msg.get("method").and_then(|m| m.as_str()).unwrap_or("");
     let params = msg.get("params").cloned().unwrap_or(Value::Null);
-
-    // Notifications never carry an id and get no response.
     let is_notification = id.is_none() || method.starts_with("notifications/");
 
     let result = match method {
@@ -173,18 +300,53 @@ async fn handle_message(msg: &Value, registry: &Registry) -> Result<Option<Value
             "serverInfo": { "name": SERVER_NAME, "version": env!("CARGO_PKG_VERSION") },
         }),
         "ping" => json!({}),
-        "tools/list" => json!({ "tools": build_tools(registry) }),
+        "tools/list" => json!({ "tools": build_meta_tools() }),
         "tools/call" => {
             let name = params.get("name").and_then(|n| n.as_str()).unwrap_or("");
             let arguments = params.get("arguments").cloned().unwrap_or_else(|| json!({}));
-            match call_tool(registry, name, &arguments).await {
-                Ok(res) => res,
-                Err(err) => return Ok(Some(err)),
+            match name {
+                "searchTools" => {
+                    let query = arguments.get("query").and_then(|q| q.as_str()).unwrap_or("").to_string();
+                    let limit = arguments.get("limit").and_then(|l| l.as_u64()).unwrap_or(20) as usize;
+                    let entries = tool_entries(registry);
+                    let results = bm25_search(&entries, &query, limit);
+                    let text = serde_json::to_string(&results).map_err(|e| CliError::command_execution(e.to_string()))?;
+                    json!({ "content": [{ "type": "text", "text": text }], "isError": false })
+                }
+                "getToolDefinition" => {
+                    let tool = arguments.get("name").and_then(|n| n.as_str()).unwrap_or("");
+                    match find_tool(registry, tool) {
+                        Some((site, cmd)) => {
+                            let def = tool_definition(site, cmd);
+                            let text = serde_json::to_string(&def).map_err(|e| CliError::command_execution(e.to_string()))?;
+                            json!({ "content": [{ "type": "text", "text": text }], "isError": false })
+                        }
+                        None => {
+                            return Ok(Some(json!({
+                                "jsonrpc": "2.0", "id": id,
+                                "result": { "content": [{ "type": "text", "text": format!("Unknown tool: {}", tool) }], "isError": true },
+                            })));
+                        }
+                    }
+                }
+                "useTool" => {
+                    let tool = arguments.get("name").and_then(|n| n.as_str()).unwrap_or("");
+                    let tool_args = arguments.get("arguments").cloned().unwrap_or_else(|| json!({}));
+                    match call_tool(registry, tool, &tool_args).await {
+                        Ok(res) => res,
+                        Err(err) => return Ok(Some(err)),
+                    }
+                }
+                _ => {
+                    return Ok(Some(json!({
+                        "jsonrpc": "2.0", "id": id,
+                        "result": { "content": [{ "type": "text", "text": format!("Unknown tool: {}", name) }], "isError": true },
+                    })));
+                }
             }
         }
         "shutdown" => json!({}),
         _ => {
-            // Unknown method: respond with method-not-found if not a notification.
             if is_notification {
                 return Ok(None);
             }
@@ -207,7 +369,8 @@ async fn handle_message(msg: &Value, registry: &Registry) -> Result<Option<Value
     })))
 }
 
-/// Run the MCP stdio server loop until EOF.
+// ── stdio loop ──────────────────────────────────────────────────
+
 pub async fn run_mcp(registry: &Registry) -> Result<(), CliError> {
     let mut reader = BufReader::new(tokio::io::stdin());
     let mut stdout = tokio::io::stdout();
