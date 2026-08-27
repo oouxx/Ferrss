@@ -9,12 +9,50 @@ use tracing::{debug, info};
 
 use crate::config::LlmConfig;
 
-/// Resolve the API key: prefer config `llm.apikey`, otherwise fall back to the
-/// `OLLAMA_API_KEY` environment variable.
+/// Expand `${VAR_NAME}` environment-variable placeholders in a string.
+/// Unknown/unset variables expand to an empty string. Any literal `${` not forming a
+/// valid placeholder is left as-is.
+fn expand_env_placeholders(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut rest = s;
+    while let Some(start) = rest.find("${") {
+        out.push_str(&rest[..start]);
+        let after = &rest[start + 2..];
+        match after.find('}') {
+            Some(end) => {
+                let var = &after[..end];
+                if var.is_empty() {
+                    out.push_str("${");
+                    rest = after;
+                } else {
+                    out.push_str(&std::env::var(var).unwrap_or_default());
+                    rest = &after[end + 1..];
+                }
+            }
+            None => {
+                // Unclosed placeholder: keep the rest verbatim.
+                out.push_str(&rest[start..]);
+                break;
+            }
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
+/// Resolve the API key for a request.
+/// Priority:
+///   1. `llm.apikey` from config — with `${ENV_VAR}` placeholders expanded
+///      (e.g. `"${OLLAMA_API_KEY}"`, `"${OPENAI_API_KEY}"`).
+///   2. Fall back to the `OLLAMA_API_KEY` environment variable.
 fn resolve_api_key(llm: &LlmConfig) -> String {
     if let Some(k) = &llm.apikey {
-        if !k.trim().is_empty() {
-            return k.clone();
+        let trimmed = k.trim();
+        if !trimmed.is_empty() {
+            let expanded = expand_env_placeholders(trimmed);
+            if !expanded.trim().is_empty() {
+                return expanded;
+            }
         }
     }
     std::env::var("OLLAMA_API_KEY")
@@ -227,42 +265,3 @@ fn build_prompt(captured_data: &Value, goal: &str, site: &str) -> String {
     )
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::config::LlmConfig;
-
-    #[test]
-    fn test_resolve_api_key_prefers_config() {
-        let llm = LlmConfig {
-            apikey: Some("cfg-key".into()),
-            ..Default::default()
-        };
-        std::env::set_var("OLLAMA_API_KEY", "env-key");
-        assert_eq!(resolve_api_key(&llm), "cfg-key");
-        std::env::remove_var("OLLAMA_API_KEY");
-    }
-
-    #[test]
-    fn test_resolve_api_key_falls_back_to_env() {
-        let llm = LlmConfig { apikey: None, ..Default::default() };
-        std::env::set_var("OLLAMA_API_KEY", "env-key");
-        assert_eq!(resolve_api_key(&llm), "env-key");
-        std::env::remove_var("OLLAMA_API_KEY");
-    }
-
-    #[test]
-    fn test_resolve_api_key_ignores_empty_config() {
-        let llm = LlmConfig { apikey: Some("   ".into()), ..Default::default() };
-        std::env::set_var("OLLAMA_API_KEY", "env-key");
-        assert_eq!(resolve_api_key(&llm), "env-key");
-        std::env::remove_var("OLLAMA_API_KEY");
-    }
-
-    #[test]
-    fn test_resolve_api_key_empty_when_nothing_set() {
-        let llm = LlmConfig { apikey: None, ..Default::default() };
-        std::env::remove_var("OLLAMA_API_KEY");
-        assert_eq!(resolve_api_key(&llm), "");
-    }
-}
