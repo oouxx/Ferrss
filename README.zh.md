@@ -123,11 +123,22 @@ cp target/release/autocli /usr/local/bin/   # macOS / Linux
 
 ## Skill 安装
 
-一键为你的 AI Agent 安装 autocli skill：
+一键为你的 AI Agent 安装 autocli skill（本 fork 版本，已去除商业/云端依赖）：
 
 ```bash
-npx skills add https://github.com/nashsu/autocli-skill
+# 查看 skill
+npx skills add oouxx/Ferrss --list
+
+# 全局安装到 Claude Code（非交互）
+npx skills add oouxx/Ferrss -s autocli -g -a claude-code -y
+
+# 只装指定 skill
+npx skills add oouxx/Ferrss -s autocli
 ```
+
+> 需要仓库已 push 且为 **public**。手动安装见 `skills/README.md`。
+
+安装后，Agent 可直接自然语言调用 autocli（例如"查B站今日热门"）。
 
 ## 快速开始
 

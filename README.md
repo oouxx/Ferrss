@@ -123,11 +123,22 @@ Simply re-run the install command or download the latest release to overwrite th
 
 ## Skill Install
 
-One-click install autocli skill for your AI Agent:
+One-click install the autocli skill for your AI Agent (this fork version, commercial/cloud deps removed):
 
 ```bash
-npx skills add https://github.com/nashsu/autocli-skill
+# List the skill
+npx skills add oouxx/Ferrss --list
+
+# Global install to Claude Code (non-interactive)
+npx skills add oouxx/Ferrss -s autocli -g -a claude-code -y
+
+# Install the specific skill only
+npx skills add oouxx/Ferrss -s autocli
 ```
+
+> Requires the repo to be pushed and **public**. Manual install: see `skills/README.md`.
+
+After install, agents can call autocli via natural language (e.g. "get today's Bilibili trending").
 
 ## Quick Start
 
