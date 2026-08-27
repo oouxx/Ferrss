@@ -69,7 +69,7 @@ A **complete rewrite in pure Rust** based on [OpenCLI](https://github.com/jackwe
 ### One-line Install Script (macOS / Linux)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/nashsu/autocli/main/scripts/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/oouxx/Ferrss/main/scripts/install.sh | sh
 ```
 
 Automatically detects your system and architecture, downloads the corresponding binary, and installs to `/usr/local/bin/`.
@@ -77,7 +77,7 @@ Automatically detects your system and architecture, downloads the corresponding 
 ### Windows (PowerShell)
 
 ```powershell
-Invoke-WebRequest -Uri "https://github.com/nashsu/autocli/releases/latest/download/autocli-x86_64-pc-windows-msvc.zip" -OutFile autocli.zip
+Invoke-WebRequest -Uri "https://github.com/oouxx/Ferrss/releases/latest/download/autocli-x86_64-pc-windows-msvc.zip" -OutFile autocli.zip
 Expand-Archive autocli.zip -DestinationPath .
 Move-Item autocli.exe "$env:LOCALAPPDATA\Microsoft\WindowsApps\"
 ```
@@ -85,7 +85,7 @@ Move-Item autocli.exe "$env:LOCALAPPDATA\Microsoft\WindowsApps\"
 
 ### Manual Download (Simplest)
 
-Download the file for your platform from [GitHub Releases](https://github.com/nashsu/autocli/releases/latest):
+Download the file for your platform from [GitHub Releases](https://github.com/oouxx/Ferrss/releases/latest):
 
 | Platform | File |
 |------|------|
@@ -100,7 +100,7 @@ After extracting, place `autocli` (or `autocli.exe` on Windows) in your system P
 ### Build from Source
 
 ```bash
-git clone https://github.com/nashsu/autocli.git
+git clone https://github.com/oouxx/Ferrss.git
 cd autocli
 cargo build --release
 cp target/release/autocli /usr/local/bin/   # macOS / Linux
@@ -112,7 +112,7 @@ Simply re-run the install command or download the latest release to overwrite th
 
 ### Chrome Extension Setup (required for browser commands)
 
-1. Download `autocli-chrome-extension.zip` from [GitHub Releases](https://github.com/nashsu/autocli/releases/latest)
+1. Download `autocli-chrome-extension.zip` from [GitHub Releases](https://github.com/oouxx/Ferrss/releases/latest)
 2. Extract to any directory
 3. Open Chrome and go to `chrome://extensions`
 4. Enable "Developer mode" (top right toggle)
@@ -625,11 +625,11 @@ cargo build
 
 ## Star History
 
-<a href="https://www.star-history.com/?repos=nashsu%2Fautocli&type=date&legend=top-left">
+<a href="https://www.star-history.com/?repos=oouxx%2FFerrss&type=date&legend=top-left">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/image?repos=nashsu/autocli&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/image?repos=nashsu/autocli&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/image?repos=nashsu/autocli&type=date&legend=top-left" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/image?repos=oouxx/Ferrss&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/image?repos=oouxx/Ferrss&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/image?repos=oouxx/Ferrss&type=date&legend=top-left" />
  </picture>
 </a>
 

@@ -69,7 +69,7 @@
 ### 一键安装脚本（macOS / Linux）
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/nashsu/autocli/main/scripts/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/oouxx/Ferrss/main/scripts/install.sh | sh
 ```
 
 自动检测系统和架构，下载对应二进制，安装到 `/usr/local/bin/`。
@@ -77,7 +77,7 @@ curl -fsSL https://raw.githubusercontent.com/nashsu/autocli/main/scripts/install
 ### Windows (PowerShell)
 
 ```powershell
-Invoke-WebRequest -Uri "https://github.com/nashsu/autocli/releases/latest/download/autocli-x86_64-pc-windows-msvc.zip" -OutFile autocli.zip
+Invoke-WebRequest -Uri "https://github.com/oouxx/Ferrss/releases/latest/download/autocli-x86_64-pc-windows-msvc.zip" -OutFile autocli.zip
 Expand-Archive autocli.zip -DestinationPath .
 Move-Item autocli.exe "$env:LOCALAPPDATA\Microsoft\WindowsApps\"
 ```
@@ -85,7 +85,7 @@ Move-Item autocli.exe "$env:LOCALAPPDATA\Microsoft\WindowsApps\"
 
 ### 手动下载（最简单）
 
-从 [GitHub Releases](https://github.com/nashsu/autocli/releases/latest) 下载对应平台的文件：
+从 [GitHub Releases](https://github.com/oouxx/Ferrss/releases/latest) 下载对应平台的文件：
 
 | 平台 | 文件 |
 |------|------|
@@ -100,7 +100,7 @@ Move-Item autocli.exe "$env:LOCALAPPDATA\Microsoft\WindowsApps\"
 ### 从源码编译
 
 ```bash
-git clone https://github.com/nashsu/autocli.git
+git clone https://github.com/oouxx/Ferrss.git
 cd autocli
 cargo build --release
 cp target/release/autocli /usr/local/bin/   # macOS / Linux
@@ -112,7 +112,7 @@ cp target/release/autocli /usr/local/bin/   # macOS / Linux
 
 ### Chrome 扩展安装（浏览器命令需要）
 
-1. 从 [GitHub Releases](https://github.com/nashsu/autocli/releases/latest) 下载 `autocli-chrome-extension.zip`
+1. 从 [GitHub Releases](https://github.com/oouxx/Ferrss/releases/latest) 下载 `autocli-chrome-extension.zip`
 2. 解压到任意目录
 3. 打开 Chrome，访问 `chrome://extensions`
 4. 开启右上角「开发者模式」
@@ -624,11 +624,11 @@ cargo build
 
 ## Star History
 
-<a href="https://www.star-history.com/?repos=nashsu%2Fautocli&type=date&legend=top-left">
+<a href="https://www.star-history.com/?repos=oouxx%2FFerrss&type=date&legend=top-left">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/image?repos=nashsu/autocli&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/image?repos=nashsu/autocli&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/image?repos=nashsu/autocli&type=date&legend=top-left" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/image?repos=oouxx/Ferrss&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/image?repos=oouxx/Ferrss&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/image?repos=oouxx/Ferrss&type=date&legend=top-left" />
  </picture>
 </a>
 
