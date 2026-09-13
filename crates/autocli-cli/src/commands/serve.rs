@@ -454,20 +454,30 @@ fn build_rss(cmd: &CliCommand, data: &Value) -> String {
 
         let link_val = first_of(item, LINK_KEYS)
             .and_then(value_to_string)
-            .unwrap_or_else(|| link.clone());
-        if !link_val.is_empty() {
-            out.push_str(&format!("    <link>{}</link>\n", escape_xml(&link_val)));
+            .filter(|s| !s.trim().is_empty());
+
+        // An item's link must be its own URL. Reusing the channel link here
+        // makes every entry look like the same story to a reader, so when the
+        // payload has no URL we emit no item link at all.
+        if let Some(url) = &link_val {
+            out.push_str(&format!("    <link>{}</link>\n", escape_xml(url)));
         }
 
         let guid = first_of(item, GUID_KEYS)
             .and_then(value_to_string)
-            .filter(|s| !s.is_empty())
+            .filter(|s| !s.trim().is_empty())
+            .or_else(|| link_val.clone())
             .unwrap_or_else(|| {
-                if link_val.is_empty() {
-                    format!("ferrss:{}:{}:{}", cmd.site, cmd.name, i)
-                } else {
-                    link_val.clone()
-                }
+                // Payloads with neither id nor URL (e.g. wikipedia trending)
+                // still need a stable identity: derive it from the content
+                // rather than the position, so re-ordering a feed does not
+                // make readers show every entry as new.
+                format!(
+                    "ferrss:{}:{}:{:016x}",
+                    cmd.site,
+                    cmd.name,
+                    stable_hash(&format!("{title}\u{1f}{body}"))
+                )
             });
         out.push_str(&format!(
             "    <guid isPermaLink=\"false\">{}</guid>\n",
@@ -598,6 +608,21 @@ const DATE_KEYS: &[&str] = &[
     "pubDate", "pubdate", "pub_date", "published", "published_at", "publishedAt", "created_at",
     "createdAt", "date", "Date", "time", "Time", "timestamp", "updated", "updated_at",
 ];
+
+/// Deterministic 64-bit FNV-1a hash.
+///
+/// Used to derive stable item ids from content. `std::collections::hash_map`
+/// seeds its hasher per process, and the standard library makes no stability
+/// guarantee for `DefaultHasher`, so a tiny fixed hash keeps feed ids stable
+/// across restarts (and avoids a new dependency).
+fn stable_hash(s: &str) -> u64 {
+    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    for byte in s.as_bytes() {
+        hash ^= u64::from(*byte);
+        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    hash
+}
 
 // ── XML / HTML escaping ─────────────────────────────────────────
 
@@ -819,5 +844,107 @@ mod browser_gate_tests {
         }
 
         assert_eq!(peak.load(Ordering::SeqCst), 1, "only one browser command may run at a time");
+    }
+}
+
+#[cfg(test)]
+mod rss_item_identity_tests {
+    use super::*;
+    use autocli_core::Strategy;
+
+    fn cmd(site: &str, name: &str) -> CliCommand {
+        CliCommand {
+            site: site.to_string(),
+            name: name.to_string(),
+            description: "test feed".to_string(),
+            domain: Some("example.com".to_string()),
+            strategy: Strategy::default(),
+            browser: false,
+            args: Vec::new(),
+            columns: Vec::new(),
+            pipeline: None,
+            func: None,
+            timeout_seconds: None,
+            navigate_before: Default::default(),
+        }
+    }
+
+    /// Guids, in document order.
+    fn guids(rss: &str) -> Vec<String> {
+        rss.split("<guid isPermaLink=\"false\">")
+            .skip(1)
+            .filter_map(|chunk| chunk.split("</guid>").next())
+            .map(str::to_string)
+            .collect()
+    }
+
+    /// Per-item links, in document order (the channel link is not included).
+    fn item_links(rss: &str) -> Vec<String> {
+        rss.split("<item>")
+            .skip(1)
+            .filter_map(|chunk| {
+                chunk
+                    .split("<link>")
+                    .nth(1)
+                    .and_then(|rest| rest.split("</link>").next())
+                    .map(str::to_string)
+            })
+            .collect()
+    }
+
+    #[test]
+    fn items_without_urls_do_not_reuse_the_channel_link() {
+        let data = json!([
+            {"title": "A", "views": 1},
+            {"title": "B", "views": 2},
+        ]);
+        let rss = build_rss(&cmd("wikipedia", "trending"), &data);
+
+        // Only the channel carries a <link>; no item repeats it.
+        assert_eq!(rss.matches("<link>").count(), 1, "rss was: {rss}");
+        assert!(rss.contains("<link>https://example.com</link>"));
+        assert!(item_links(&rss).is_empty(), "rss was: {rss}");
+    }
+
+    #[test]
+    fn items_without_ids_get_unique_stable_guids() {
+        let c = cmd("wikipedia", "trending");
+        let data = json!([
+            {"title": "A", "views": 1},
+            {"title": "B", "views": 2},
+        ]);
+        let ids = guids(&build_rss(&c, &data));
+        assert_eq!(ids.len(), 2);
+        assert_ne!(ids[0], ids[1]);
+
+        // Refetching the same items in a different order must keep the same
+        // ids, otherwise readers show everything as new again.
+        let reordered = json!([
+            {"title": "B", "views": 2},
+            {"title": "A", "views": 1},
+        ]);
+        let ids_again = guids(&build_rss(&c, &reordered));
+        assert_eq!(ids[0], ids_again[1]);
+        assert_eq!(ids[1], ids_again[0]);
+    }
+
+    #[test]
+    fn items_use_their_own_url() {
+        let data = json!([
+            {"title": "A", "url": "https://example.com/a"},
+            {"title": "B", "url": "https://example.com/b"},
+        ]);
+        let rss = build_rss(&cmd("hackernews", "best"), &data);
+        assert_eq!(
+            item_links(&rss),
+            vec!["https://example.com/a", "https://example.com/b"]
+        );
+    }
+
+    #[test]
+    fn payload_id_wins_over_derived_id() {
+        let data = json!([{"title": "A", "id": "2608.12564"}]);
+        let rss = build_rss(&cmd("hf", "top"), &data);
+        assert!(rss.contains(">2608.12564<"), "rss was: {rss}");
     }
 }
