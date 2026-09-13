@@ -19,10 +19,10 @@ use tracing_subscriber::EnvFilter;
 
 use crate::args::coerce_and_validate_args;
 use crate::commands::{completion, doctor, mcp, read, serve};
-use crate::execution::execute_command;
+use crate::execution::{env_compat, execute_command};
 
 fn build_cli(registry: &Registry, external_clis: &[ExternalCli]) -> Command {
-    let mut app = Command::new("autocli")
+    let mut app = Command::new("ferrss")
         .version(env!("CARGO_PKG_VERSION"))
         .about("AI-driven CLI tool — turns websites into command-line interfaces")
         .arg(
@@ -121,9 +121,9 @@ fn build_cli(registry: &Registry, external_clis: &[ExternalCli]) -> Command {
                 .arg(Arg::new("goal").long("goal").help("What you want (e.g. hot, search, trending)"))
                 .arg(Arg::new("site").long("site").help("Override site name"))
                 .arg(Arg::new("ai").long("ai").action(ArgAction::SetTrue).help("Use AI (LLM) to analyze and generate adapter"))
-                .arg(Arg::new("provider").long("provider").help("LLM provider name or OpenAI-compatible endpoint URL (overrides ~/.autocli/config.json)"))
-                .arg(Arg::new("model").long("model").help("LLM model name (overrides ~/.autocli/config.json)"))
-                .arg(Arg::new("api-key").long("api-key").help("LLM API key (overrides ~/.autocli/config.json)")),
+                .arg(Arg::new("provider").long("provider").help("LLM provider name or OpenAI-compatible endpoint URL (overrides ~/.ferrss/config.json)"))
+                .arg(Arg::new("model").long("model").help("LLM model name (overrides ~/.ferrss/config.json)"))
+                .arg(Arg::new("api-key").long("api-key").help("LLM API key (overrides ~/.ferrss/config.json)")),
         )
         .subcommand(
             Command::new("config-llm")
@@ -176,35 +176,46 @@ fn build_cli(registry: &Registry, external_clis: &[ExternalCli]) -> Command {
     app
 }
 
-/// Migrate legacy ~/.opencli-rs directory to ~/.autocli
+/// Migrate legacy ~/.opencli-rs and ~/.autocli directories to ~/.ferrss
 fn migrate_legacy_config() {
     let home = match std::env::var("HOME").or_else(|_| std::env::var("USERPROFILE")) {
         Ok(h) => h,
         Err(_) => return,
     };
-    let old_dir = std::path::PathBuf::from(&home).join(".opencli-rs");
-    let new_dir = std::path::PathBuf::from(&home).join(".autocli");
+    let new_dir = std::path::PathBuf::from(&home).join(".ferrss");
 
-    if !old_dir.exists() {
-        return;
+    // Oldest name first, so the newer legacy name wins on conflicts.
+    for legacy in [".opencli-rs", ".autocli"] {
+        let old_dir = std::path::PathBuf::from(&home).join(legacy);
+        if !old_dir.exists() {
+            continue;
+        }
+
+        // Copy contents to the new directory
+        if let Err(e) = copy_dir_recursive(&old_dir, &new_dir) {
+            eprintln!("{}{}", t("⚠️  配置迁移失败: ", "⚠️  Config migration failed: "), e);
+            continue;
+        }
+
+        // Remove old directory
+        if let Err(e) = std::fs::remove_dir_all(&old_dir) {
+            eprintln!("{}{}", t("⚠️  无法删除旧配置目录: ", "⚠️  Cannot remove old config dir: "), e);
+            continue;
+        }
+
+        let msg = if legacy == ".autocli" {
+            t(
+                "✅ 已将配置从 ~/.autocli 迁移到 ~/.ferrss",
+                "✅ Migrated config from ~/.autocli to ~/.ferrss",
+            )
+        } else {
+            t(
+                "✅ 已将配置从 ~/.opencli-rs 迁移到 ~/.ferrss",
+                "✅ Migrated config from ~/.opencli-rs to ~/.ferrss",
+            )
+        };
+        eprintln!("{}", msg);
     }
-
-    // Copy contents to new directory
-    if let Err(e) = copy_dir_recursive(&old_dir, &new_dir) {
-        eprintln!("{}{}", t("⚠️  配置迁移失败: ", "⚠️  Config migration failed: "), e);
-        return;
-    }
-
-    // Remove old directory
-    if let Err(e) = std::fs::remove_dir_all(&old_dir) {
-        eprintln!("{}{}", t("⚠️  无法删除旧配置目录: ", "⚠️  Cannot remove old config dir: "), e);
-        return;
-    }
-
-    eprintln!("{}", t(
-        "✅ 已将配置从 ~/.opencli-rs 迁移到 ~/.autocli",
-        "✅ Migrated config from ~/.opencli-rs to ~/.autocli"
-    ));
 }
 
 fn copy_dir_recursive(src: &std::path::Path, dst: &std::path::Path) -> std::io::Result<()> {
@@ -263,7 +274,7 @@ fn save_adapter(site: &str, name: &str, yaml: &str) {
         .or_else(|_| std::env::var("USERPROFILE"))
         .unwrap_or_else(|_| ".".to_string());
     let dir = std::path::PathBuf::from(&home)
-        .join(".autocli")
+        .join(".ferrss")
         .join("adapters")
         .join(&site);
     let _ = std::fs::create_dir_all(&dir);
@@ -274,7 +285,7 @@ fn save_adapter(site: &str, name: &str, yaml: &str) {
             eprintln!("   {}{}", t("保存到: ", "Saved to: "), path.display());
             eprintln!();
             eprintln!("   {}", t("运行命令:", "Run it now:"));
-            eprintln!("   autocli {} {}", site, name);
+            eprintln!("   ferrss {} {}", site, name);
         }
         Err(e) => {
             eprintln!("{}{}", t("生成成功但保存失败: ", "Generated adapter but failed to save: "), e);
@@ -297,14 +308,14 @@ fn print_error(err: &autocli_core::CliError) {
 
 #[tokio::main]
 async fn main() {
-    // 0. Migrate from ~/.opencli-rs to ~/.autocli if needed
+    // 0. Migrate legacy config dirs (~/.opencli-rs, ~/.autocli) to ~/.ferrss if needed
     migrate_legacy_config();
 
     // 1. Initialize tracing
     tracing_subscriber::fmt()
         .with_env_filter(
             EnvFilter::try_from_env("RUST_LOG").unwrap_or_else(|_| {
-                if std::env::var("AUTOCLI_VERBOSE").is_ok() {
+                if env_compat("FERRSS_VERBOSE").is_some() {
                     EnvFilter::new("debug")
                 } else {
                     EnvFilter::new("warn")
@@ -316,8 +327,7 @@ async fn main() {
     // Check for --daemon flag (used by BrowserBridge to spawn daemon as subprocess)
     let args: Vec<String> = std::env::args().collect();
     if args.iter().any(|a| a == "--daemon") {
-        let port: u16 = std::env::var("AUTOCLI_DAEMON_PORT")
-            .ok()
+        let port: u16 = env_compat("FERRSS_DAEMON_PORT")
             .and_then(|s| s.parse().ok())
             .unwrap_or(19925);
         tracing::info!(port = port, "Starting daemon server");
@@ -338,8 +348,7 @@ async fn main() {
 
     // 1.5. Ensure daemon is running with correct version
     {
-        let port: u16 = std::env::var("AUTOCLI_DAEMON_PORT")
-            .ok()
+        let port: u16 = env_compat("FERRSS_DAEMON_PORT")
             .and_then(|s| s.parse().ok())
             .unwrap_or(19925);
         let current_version = env!("CARGO_PKG_VERSION");
@@ -391,8 +400,7 @@ async fn main() {
     {
         let format_arg = std::env::args().any(|a| a == "--format" || a == "-f");
         if !format_arg {
-            let port: u16 = std::env::var("AUTOCLI_DAEMON_PORT")
-                .ok()
+            let port: u16 = env_compat("FERRSS_DAEMON_PORT")
                 .and_then(|s| s.parse().ok())
                 .unwrap_or(19925);
             if let Ok(client) = reqwest::Client::builder().timeout(std::time::Duration::from_secs(1)).build() {
@@ -534,8 +542,8 @@ async fn main() {
 
                 if provider.is_none() && model.is_none() && api_key.is_none() {
                     eprintln!("{}", t(
-                        "用法: autocli config-llm --provider <name|url> --model <name> [--api-key <key>]",
-                        "Usage: autocli config-llm --provider <name|url> --model <name> [--api-key <key>]"
+                        "用法: ferrss config-llm --provider <name|url> --model <name> [--api-key <key>]",
+                        "Usage: ferrss config-llm --provider <name|url> --model <name> [--api-key <key>]"
                     ));
                     eprintln!("{}", t(
                         "provider 可以是名称(openai/deepseek/qwen/moonshot/zhipu/groq/mistral/ollama/lmstudio)或完整 endpoint URL",
@@ -580,7 +588,7 @@ async fn main() {
                     .unwrap_or_default();
 
                 let mut bridge = autocli_browser::BrowserBridge::new(
-                    std::env::var("AUTOCLI_DAEMON_PORT").ok()
+                    env_compat("FERRSS_DAEMON_PORT")
                         .and_then(|s| s.parse().ok()).unwrap_or(19925),
                 );
                 match bridge.connect().await {
@@ -613,7 +621,7 @@ async fn main() {
                 let url = site_matches.get_one::<String>("url").unwrap();
 
                 let mut bridge = autocli_browser::BrowserBridge::new(
-                    std::env::var("AUTOCLI_DAEMON_PORT").ok()
+                    env_compat("FERRSS_DAEMON_PORT")
                         .and_then(|s| s.parse().ok()).unwrap_or(19925),
                 );
                 match bridge.connect().await {
@@ -638,13 +646,13 @@ async fn main() {
                 let use_ai = site_matches.get_flag("ai");
 
                 let mut bridge = autocli_browser::BrowserBridge::new(
-                    std::env::var("AUTOCLI_DAEMON_PORT").ok()
+                    env_compat("FERRSS_DAEMON_PORT")
                         .and_then(|s| s.parse().ok()).unwrap_or(19925),
                 );
                 match bridge.connect().await {
                     Ok(page) => {
                         if use_ai {
-                            // Resolve LLM config from ~/.autocli/config.json, overridden by CLI args
+                            // Resolve LLM config from ~/.ferrss/config.json, overridden by CLI args
                             let mut config = autocli_ai::load_config();
                             if let Some(p) = site_matches.get_one::<String>("provider") {
                                 config.llm.endpoint = Some(autocli_ai::provider_endpoint(p));
@@ -664,12 +672,12 @@ async fn main() {
                                     "❌ LLM provider/model is not configured"
                                 ));
                                 eprintln!("{}", t(
-                                    "   先运行: autocli config-llm --provider <name|url> --model <name> [--api-key <key>]",
-                                    "   Run first: autocli config-llm --provider <name|url> --model <name> [--api-key <key>]"
+                                    "   先运行: ferrss config-llm --provider <name|url> --model <name> [--api-key <key>]",
+                                    "   Run first: ferrss config-llm --provider <name|url> --model <name> [--api-key <key>]"
                                 ));
                                 eprintln!("{}", t(
-                                    "   或直接指定: autocli generate <url> --ai --provider ollama --model llama3",
-                                    "   Or inline: autocli generate <url> --ai --provider ollama --model llama3"
+                                    "   或直接指定: ferrss generate <url> --ai --provider ollama --model llama3",
+                                    "   Or inline: ferrss generate <url> --ai --provider ollama --model llama3"
                                 ));
                                 let _ = page.close().await;
                                 std::process::exit(1);
@@ -788,11 +796,11 @@ async fn main() {
             let app = build_cli(&registry, &external_clis);
             let app_clone = app;
             // Try to print subcommand help
-            let _ = app_clone.try_get_matches_from(vec!["autocli", site_name, "--help"]);
+            let _ = app_clone.try_get_matches_from(vec!["ferrss", site_name, "--help"]);
         }
     } else {
         // No subcommand specified
-        eprintln!("autocli v{}", env!("CARGO_PKG_VERSION"));
+        eprintln!("ferrss v{}", env!("CARGO_PKG_VERSION"));
         eprintln!("No command specified. Use --help for usage.");
         std::process::exit(1);
     }

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "AutoCLI",
+  "name": "Ferrss",
   "version": "1.5.6",
-  "description": "Browser automation bridge for AutoCLI.ai — executes commands in isolated Chrome windows via a local daemon.",
+  "description": "Browser automation bridge for Ferrss — executes commands in isolated Chrome windows via a local daemon.",
   "permissions": [
     "debugger",
     "scripting",
@@ -25,7 +25,7 @@
     "128": "icons/icon-128.png"
   },
   "action": {
-    "default_title": "AutoCLI",
+    "default_title": "Ferrss",
     "default_icon": {
       "16": "icons/icon-16.png",
       "32": "icons/icon-32.png"
@@ -34,5 +34,5 @@
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
   },
-  "homepage_url": "https://autocli.ai"
+  "homepage_url": "https://github.com/oouxx/Ferrss"
 }

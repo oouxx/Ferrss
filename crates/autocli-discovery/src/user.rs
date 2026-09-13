@@ -3,14 +3,25 @@ use autocli_core::{CliError, Registry};
 use std::path::PathBuf;
 
 pub fn user_adapters_dir() -> PathBuf {
-    let home = std::env::var("HOME")
+    PathBuf::from(home_dir()).join(".ferrss").join("adapters")
+}
+
+/// Legacy adapter dir: ~/.autocli/adapters (read-only fallback)
+fn legacy_user_adapters_dir() -> PathBuf {
+    PathBuf::from(home_dir()).join(".autocli").join("adapters")
+}
+
+fn home_dir() -> String {
+    std::env::var("HOME")
         .or_else(|_| std::env::var("USERPROFILE"))
-        .unwrap_or_else(|_| ".".to_string());
-    PathBuf::from(home).join(".autocli").join("adapters")
+        .unwrap_or_else(|_| ".".to_string())
 }
 
 pub fn discover_user_adapters(registry: &mut Registry) -> Result<usize, CliError> {
-    let dir = user_adapters_dir();
+    let mut dir = user_adapters_dir();
+    if !dir.exists() {
+        dir = legacy_user_adapters_dir();
+    }
     if !dir.exists() {
         return Ok(0);
     }

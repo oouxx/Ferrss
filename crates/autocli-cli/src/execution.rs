@@ -5,18 +5,24 @@ use serde_json::Value;
 use std::sync::Arc;
 use std::collections::HashMap;
 
+/// Read a `FERRSS_*` environment variable, falling back to its legacy
+/// `AUTOCLI_*` name so existing setups keep working.
+pub fn env_compat(name: &str) -> Option<String> {
+    std::env::var(name)
+        .ok()
+        .or_else(|| std::env::var(name.replacen("FERRSS_", "AUTOCLI_", 1)).ok())
+}
+
 /// Get daemon port from env or default
 fn daemon_port() -> u16 {
-    std::env::var("AUTOCLI_DAEMON_PORT")
-        .ok()
+    env_compat("FERRSS_DAEMON_PORT")
         .and_then(|s| s.parse().ok())
         .unwrap_or(19925)
 }
 
 /// Get command timeout from env or command config or default (60s)
 fn command_timeout(cmd: &CliCommand) -> u64 {
-    std::env::var("AUTOCLI_BROWSER_COMMAND_TIMEOUT")
-        .ok()
+    env_compat("FERRSS_BROWSER_COMMAND_TIMEOUT")
         .and_then(|s| s.parse().ok())
         .or(cmd.timeout_seconds)
         .unwrap_or(60)

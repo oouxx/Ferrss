@@ -1,9 +1,10 @@
 use colored::Colorize;
 use autocli_browser::DaemonClient;
 use autocli_external::is_binary_installed;
+use crate::execution::env_compat;
 
 pub async fn run_doctor() {
-    println!("{}", "autocli diagnostics".bold());
+    println!("{}", "ferrss diagnostics".bold());
     println!();
 
     // 1. Check Chrome/Chromium installed
@@ -26,8 +27,7 @@ pub async fn run_doctor() {
 
     // 2. Check daemon reachable
     let client = DaemonClient::new(
-        std::env::var("AUTOCLI_DAEMON_PORT")
-            .ok()
+        env_compat("FERRSS_DAEMON_PORT")
             .and_then(|s| s.parse().ok())
             .unwrap_or(19925),
     );
@@ -51,7 +51,7 @@ pub async fn run_doctor() {
     }
 
     // 5. Check CDP endpoint
-    let cdp = std::env::var("AUTOCLI_CDP_ENDPOINT").ok();
+    let cdp = env_compat("FERRSS_CDP_ENDPOINT");
     if let Some(endpoint) = cdp {
         println!();
         println!("CDP endpoint: {}", endpoint);

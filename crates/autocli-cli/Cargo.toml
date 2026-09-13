@@ -1,10 +1,10 @@
 [package]
-name = "autocli"
+name = "ferrss"
 version.workspace = true
 edition.workspace = true
 
 [[bin]]
-name = "autocli"
+name = "ferrss"
 path = "src/main.rs"
 
 [dependencies]

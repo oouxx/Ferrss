@@ -12,19 +12,32 @@ fn user_external_clis_path() -> PathBuf {
         .or_else(|_| std::env::var("USERPROFILE"))
         .unwrap_or_else(|_| ".".to_string());
     PathBuf::from(home)
+        .join(".ferrss")
+        .join("external-clis.yaml")
+}
+
+/// Legacy override file: ~/.autocli/external-clis.yaml (read-only fallback)
+fn legacy_external_clis_path() -> PathBuf {
+    let home = std::env::var("HOME")
+        .or_else(|_| std::env::var("USERPROFILE"))
+        .unwrap_or_else(|_| ".".to_string());
+    PathBuf::from(home)
         .join(".autocli")
         .join("external-clis.yaml")
 }
 
 /// Load external CLI definitions from the embedded resource and optionally
-/// from the user's `~/.autocli/external-clis.yaml`.
+/// from the user's `~/.ferrss/external-clis.yaml` (legacy: `~/.autocli/`).
 ///
 /// User definitions are merged on top: if a user defines a CLI with the same
 /// `name` as a builtin one, the user version wins.
 pub fn load_external_clis() -> Result<Vec<ExternalCli>, CliError> {
     let mut clis: Vec<ExternalCli> = serde_yaml::from_str(BUILTIN_EXTERNAL_CLIS)?;
 
-    let user_path = user_external_clis_path();
+    let mut user_path = user_external_clis_path();
+    if !user_path.exists() {
+        user_path = legacy_external_clis_path();
+    }
     if user_path.exists() {
         match std::fs::read_to_string(&user_path) {
             Ok(content) => match serde_yaml::from_str::<Vec<ExternalCli>>(&content) {

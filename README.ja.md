@@ -1,10 +1,10 @@
-# AutoCLI
-> 旧名 **opencli-rs**。v0.2.4 より **AutoCLI** に改名。
+# Ferrss
+> 旧名 **opencli-rs**、後に **AutoCLI**。v0.3.11 より **Ferrss** に改名。
 
 **[English](README.md) | [中文](README.zh.md) | [日本語](README.ja.md)**
 
 <p align="center">
-  <img src="assets/title_screen.jpg" alt="autocli" width="800" />
+  <img src="assets/title_screen.jpg" alt="ferrss" width="800" />
 </p>
 
 <p align="center">
@@ -27,12 +27,12 @@
 [OpenCLI](https://github.com/jackwener/opencli)（TypeScript）を **純 Rust で完全リライト**。機能は同等で、**最大12倍高速**、**メモリ使用量1/10**、**単一ファイル 4.7MB**、ランタイム依存ゼロ。
 
 **OpenClaw/Agent の最良のパートナー** —— AI Agent にウェブ全体の情報にアクセスする能力を与え、1コマンドで55以上のサイトのリアルタイムデータを取得。
-**AI Agentのために設計：** `AGENT.md` や `.cursorrules` に `autocli list` を設定すれば、AI が利用可能な全ツールを自動的に発見できます。ローカル CLI を登録（`autocli register mycli`）すれば、AI があなたの全ツールを完璧に呼び出せます。
+**AI Agentのために設計：** `AGENT.md` や `.cursorrules` に `ferrss list` を設定すれば、AI が利用可能な全ツールを自動的に発見できます。ローカル CLI を登録（`ferrss register mycli`）すれば、AI があなたの全ツールを完璧に呼び出せます。
 
 
 ## 🚀 パフォーマンス比較
 
-| 指標 | 🦀 autocli (Rust) | 📦 opencli (Node.js) | 改善 |
+| 指標 | 🦀 ferrss (Rust) | 📦 opencli (Node.js) | 改善 |
 |------|:-----------------:|:-----------------:|:----:|
 | 💾 **メモリ使用量 (Public コマンド)** | 15 MB | 99 MB | **6.6x** |
 | 💾 **メモリ使用量 (Browser コマンド)** | 9 MB | 95 MB | **10.6x** |
@@ -42,7 +42,7 @@
 
 **⚡ 実測コマンド所要時間比較：**
 
-| コマンド | 🦀 autocli | 📦 opencli | 高速化倍率 |
+| コマンド | 🦀 ferrss | 📦 opencli | 高速化倍率 |
 |------|:----------:|:-------:|:------:|
 | `bilibili hot` | **1.66s** | 20.1s | 🔥 **12x** |
 | `zhihu hot` | **1.77s** | 20.5s | 🔥 **11.6x** |
@@ -77,9 +77,9 @@ curl -fsSL https://raw.githubusercontent.com/oouxx/Ferrss/main/scripts/install.s
 ### Windows (PowerShell)
 
 ```powershell
-Invoke-WebRequest -Uri "https://github.com/oouxx/Ferrss/releases/latest/download/autocli-x86_64-pc-windows-msvc.zip" -OutFile autocli.zip
-Expand-Archive autocli.zip -DestinationPath .
-Move-Item autocli.exe "$env:LOCALAPPDATA\Microsoft\WindowsApps\"
+Invoke-WebRequest -Uri "https://github.com/oouxx/Ferrss/releases/latest/download/ferrss-x86_64-pc-windows-msvc.zip" -OutFile ferrss.zip
+Expand-Archive ferrss.zip -DestinationPath .
+Move-Item ferrss.exe "$env:LOCALAPPDATA\Microsoft\WindowsApps\"
 ```
 
 
@@ -89,21 +89,21 @@ Move-Item autocli.exe "$env:LOCALAPPDATA\Microsoft\WindowsApps\"
 
 | プラットフォーム | ファイル |
 |------|------|
-| macOS (Apple Silicon) | `autocli-aarch64-apple-darwin.tar.gz` |
-| macOS (Intel) | `autocli-x86_64-apple-darwin.tar.gz` |
-| Linux (x86_64) | `autocli-x86_64-unknown-linux-musl.tar.gz` |
-| Linux (ARM64) | `autocli-aarch64-unknown-linux-musl.tar.gz` |
-| Windows (x64) | `autocli-x86_64-pc-windows-msvc.zip` |
+| macOS (Apple Silicon) | `ferrss-aarch64-apple-darwin.tar.gz` |
+| macOS (Intel) | `ferrss-x86_64-apple-darwin.tar.gz` |
+| Linux (x86_64) | `ferrss-x86_64-unknown-linux-musl.tar.gz` |
+| Linux (ARM64) | `ferrss-aarch64-unknown-linux-musl.tar.gz` |
+| Windows (x64) | `ferrss-x86_64-pc-windows-msvc.zip` |
 
-解凍後、`autocli`（Windows は `autocli.exe`）をシステム PATH に配置してください。
+解凍後、`ferrss`（Windows は `ferrss.exe`）をシステム PATH に配置してください。
 
 ### ソースからビルド
 
 ```bash
 git clone https://github.com/oouxx/Ferrss.git
-cd autocli
+cd Ferrss
 cargo build --release
-cp target/release/autocli /usr/local/bin/   # macOS / Linux
+cp target/release/ferrss /usr/local/bin/   # macOS / Linux
 ```
 
 ### アップデート
@@ -112,51 +112,51 @@ cp target/release/autocli /usr/local/bin/   # macOS / Linux
 
 ### Chrome 拡張機能のインストール（ブラウザコマンドに必要）
 
-1. [GitHub Releases](https://github.com/oouxx/Ferrss/releases/latest) から `autocli-chrome-extension.zip` をダウンロード
+1. [GitHub Releases](https://github.com/oouxx/Ferrss/releases/latest) から `ferrss-chrome-extension.zip` をダウンロード
 2. 任意のディレクトリに解凍
 3. Chrome を開き、`chrome://extensions` にアクセス
 4. 右上の「デベロッパーモード」を有効化
 5. 「パッケージ化されていない拡張機能を読み込む」をクリックし、解凍したフォルダを選択
-6. 拡張機能は自動的に autocli daemon に接続されます
+6. 拡張機能は自動的に ferrss daemon に接続されます
 
 > Public モードのコマンド（hackernews、devto、lobsters など）は拡張機能なしで使用できます。
 
 ## Skill インストール
 
-ワンクリックで AI Agent に autocli skill をインストール：
+ワンクリックで AI Agent に ferrss skill をインストール：
 
 ```bash
-npx skills add https://github.com/nashsu/autocli-skill
+npx skills add https://github.com/nashsu/ferrss-skill
 ```
 
 ## クイックスタート
 
 ```bash
 # 利用可能な全コマンドを表示
-autocli --help
+ferrss --help
 
 # 特定サイトのコマンドを表示
-autocli hackernews --help
+ferrss hackernews --help
 
 # Hacker News の人気記事を取得（公開 API、ブラウザ不要）
-autocli hackernews top --limit 10
+ferrss hackernews top --limit 10
 
 # JSON 形式で出力
-autocli hackernews top --limit 5 --format json
+ferrss hackernews top --limit 5 --format json
 
 # Bilibili の人気動画を取得（ブラウザ + Cookie が必要）
-autocli bilibili hot --limit 20
+ferrss bilibili hot --limit 20
 
 # Twitter を検索（ブラウザ + ログインが必要）
-autocli twitter search "rust lang" --limit 10
+ferrss twitter search "rust lang" --limit 10
 
 # 診断を実行
-autocli doctor
+ferrss doctor
 
 # シェル補完を生成
-autocli completion bash >> ~/.bashrc
-autocli completion zsh >> ~/.zshrc
-autocli completion fish > ~/.config/fish/completions/autocli.fish
+ferrss completion bash >> ~/.bashrc
+ferrss completion zsh >> ~/.zshrc
+ferrss completion fish > ~/.config/fish/completions/ferrss.fish
 ```
 
 ## AI コマンド
@@ -166,35 +166,35 @@ autocli completion fish > ~/.config/fish/completions/autocli.fish
 ### ステップ 1：認証
 
 ```bash
-autocli auth
+ferrss auth
 ```
 
 実行すると：
 1. ブラウザで [https://autocli.ai/get-token](https://autocli.ai/get-token) を自動的に開く
 2. トークンの入力を求める
 3. サーバーでトークンを検証
-4. `~/.autocli/config.json` に保存
+4. `~/.ferrss/config.json` に保存
 
 ### ステップ 2：Chrome 拡張で必要なデータを正確に選択し、生成ボタンをクリックすると、AI が自動的にページを分析し、関連データを拡張してアダプターを生成します：
 
 <p align="center">
-  <img src="assets/chrome_extension_demo.jpg" alt="autocli" width="800" />
+  <img src="assets/chrome_extension_demo.jpg" alt="ferrss" width="800" />
 </p>
 
-生成が完了すると、autocli で新しく生成されたコマンドを使ってデータを取得できます。
+生成が完了すると、ferrss で新しく生成されたコマンドを使ってデータを取得できます。
 
 <p align="center">
-  <img src="assets/autocli_use.jpg" alt="autocli" width="800" />
+  <img src="assets/autocli_use.jpg" alt="ferrss" width="800" />
 </p>
 
 ### ステップ 3：既存アダプターを検索
 
 ```bash
 # URL で検索
-autocli search https://www.example.com
+ferrss search https://www.example.com
 
 # ドメイン名でもOK（自動的に https:// を補完）
-autocli search example.com
+ferrss search example.com
 ```
 
 [autocli.ai](https://autocli.ai) でコミュニティ共有アダプターを検索。インタラクティブリストから選択すると、自動的にダウンロードしてローカルに保存 — すぐに使用可能。
@@ -203,11 +203,11 @@ autocli search example.com
 
 | 変数 | 説明 | デフォルト |
 |------|------|-----------|
-| `AUTOCLI_API_BASE` | サーバー URL を上書き | `https://www.autocli.ai` |
+| `FERRSS_API_BASE` | サーバー URL を上書き | `https://www.autocli.ai` |
 
 ## 組み込みコマンド
 
-`autocli --help` を実行して利用可能な全コマンドを確認できます。
+`ferrss --help` を実行して利用可能な全コマンドを確認できます。
 
 | サイト | コマンド | モード |
 |------|------|------|
@@ -277,20 +277,20 @@ autocli search example.com
 
 ```bash
 # 🤖 AI 駆動（推奨）：LLM がページを分析しアダプターを生成
-autocli generate https://www.example.com --goal hot --ai
+ferrss generate https://www.example.com --goal hot --ai
 # autocli.ai で既存アダプターを先に検索し、見つからなければ AI で生成
 
 # 🔧 ルールベース：AI なしのヒューリスティック分析
-autocli generate https://www.example.com --goal hot
+ferrss generate https://www.example.com --goal hot
 
 # Web サイトの API を探索（エンドポイント、フレームワーク、Store）
-autocli explore https://www.example.com --site mysite
+ferrss explore https://www.example.com --site mysite
 
 # インタラクティブファジング（ボタンクリックで隠し API を発見）
-autocli explore https://www.example.com --auto --click "コメント,字幕"
+ferrss explore https://www.example.com --auto --click "コメント,字幕"
 
 # 認証ストラテジー自動検出（PUBLIC → COOKIE → HEADER）
-autocli cascade https://api.example.com/hot
+ferrss cascade https://api.example.com/hot
 ```
 
 **ディスカバリー機能：**
@@ -306,16 +306,16 @@ autocli cascade https://api.example.com/hot
 
 ```bash
 # Bilibili 動画ダウンロード（yt-dlp が必要）
-autocli bilibili download BV1xxx --output ./videos --quality 1080p
+ferrss bilibili download BV1xxx --output ./videos --quality 1080p
 
 # 知乎記事を Markdown でダウンロード（画像付き）
-autocli zhihu download "https://zhuanlan.zhihu.com/p/xxx" --output ./articles
+ferrss zhihu download "https://zhuanlan.zhihu.com/p/xxx" --output ./articles
 
 # WeChat 公式アカウント記事を Markdown でダウンロード（画像付き）
-autocli weixin download "https://mp.weixin.qq.com/s/xxx" --output ./articles
+ferrss weixin download "https://mp.weixin.qq.com/s/xxx" --output ./articles
 
 # Twitter/X メディアダウンロード（画像 + 動画）
-autocli twitter download nash_su --limit 10 --output ./twitter
+ferrss twitter download nash_su --limit 10 --output ./twitter
 ```
 
 **ダウンロード機能：**
@@ -338,10 +338,10 @@ autocli twitter download nash_su --limit 10 --output ./twitter
 
 ```bash
 # GitHub CLI にパススルー
-autocli gh repo list
+ferrss gh repo list
 
 # kubectl にパススルー
-autocli kubectl get pods
+ferrss kubectl get pods
 ```
 
 ## 出力フォーマット
@@ -349,11 +349,11 @@ autocli kubectl get pods
 `--format` グローバルパラメータで出力フォーマットを切り替え：
 
 ```bash
-autocli hackernews top --format table    # ASCII テーブル（デフォルト）
-autocli hackernews top --format json     # JSON
-autocli hackernews top --format yaml     # YAML
-autocli hackernews top --format csv      # CSV
-autocli hackernews top --format md       # Markdown テーブル
+ferrss hackernews top --format table    # ASCII テーブル（デフォルト）
+ferrss hackernews top --format json     # JSON
+ferrss hackernews top --format yaml     # YAML
+ferrss hackernews top --format csv      # CSV
+ferrss hackernews top --format md       # Markdown テーブル
 ```
 
 ## 認証ストラテジー
@@ -370,10 +370,10 @@ autocli hackernews top --format md       # Markdown テーブル
 
 ## カスタムアダプター
 
-`~/.autocli/adapters/` に YAML ファイルを作成するだけでカスタムアダプターを追加できます：
+`~/.ferrss/adapters/` に YAML ファイルを作成するだけでカスタムアダプターを追加できます：
 
 ```yaml
-# ~/.autocli/adapters/mysite/hot.yaml
+# ~/.ferrss/adapters/mysite/hot.yaml
 site: mysite
 name: hot
 description: My site hot posts
@@ -468,16 +468,16 @@ Pipeline では `${{ expression }}` 構文を使用します：
 
 | パス | 説明 |
 |------|------|
-| `~/.autocli/adapters/` | ユーザーカスタムアダプター |
-| `~/.autocli/plugins/` | ユーザープラグイン |
-| `~/.autocli/external-clis.yaml` | ユーザー外部 CLI レジストリ |
+| `~/.ferrss/adapters/` | ユーザーカスタムアダプター |
+| `~/.ferrss/plugins/` | ユーザープラグイン |
+| `~/.ferrss/external-clis.yaml` | ユーザー外部 CLI レジストリ |
 
 ## アーキテクチャ
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                      ユーザー / AI Agent                         │
-│                     autocli <site> <command>                  │
+│                     ferrss <site> <command>                  │
 └─────────────────────┬───────────────────────────────────────────┘
                       │
                       ▼
@@ -522,7 +522,7 @@ Pipeline では `${{ expression }}` 構文を使用します：
 ### Workspace 構造
 
 ```
-autocli/
+Ferrss/
 ├── crates/
 │   ├── autocli-core/        # コアデータモデル：Strategy, CliCommand, Registry, IPage trait, Error
 │   ├── autocli-pipeline/    # Pipeline エンジン：pest 式, 実行器, 14種のステップ
@@ -543,7 +543,7 @@ autocli/
 
 ### TypeScript 版からの改善点
 
-| 改善項目 | 原版 (TypeScript) | autocli (Rust) |
+| 改善項目 | 原版 (TypeScript) | ferrss (Rust) |
 |--------|-------------------|-------------------|
 | 配布方式 | Node.js + npm install (~100MB) | 単一バイナリ (4.1MB) |
 | 起動速度 | manifest JSON 読み込み → パース → 登録 | コンパイル時埋め込み、ファイル I/O ゼロ |

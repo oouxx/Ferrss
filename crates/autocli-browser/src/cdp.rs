@@ -20,7 +20,7 @@ type WsSink =
 
 /// Direct Chrome DevTools Protocol page client via WebSocket.
 ///
-/// Used when `AUTOCLI_CDP_ENDPOINT` is set (e.g., connecting to a headless Chrome instance).
+/// Used when `FERRSS_CDP_ENDPOINT` (legacy: `AUTOCLI_CDP_ENDPOINT`) is set (e.g., connecting to a headless Chrome instance).
 pub struct CdpPage {
     ws_write: Mutex<WsSink>,
     pending: Arc<RwLock<HashMap<u64, oneshot::Sender<Value>>>>,

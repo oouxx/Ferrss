@@ -19,7 +19,7 @@ use std::collections::HashMap;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 
 const PROTOCOL_VERSION: &str = "2024-11-05";
-const SERVER_NAME: &str = "autocli";
+const SERVER_NAME: &str = "ferrss";
 
 // ── Tool index ───────────────────────────────────────────────────
 
@@ -117,7 +117,7 @@ fn build_meta_tools() -> Vec<Value> {
     vec![
         json!({
             "name": "searchTools",
-            "description": "Search the available autocli tools by keyword. Returns matching tool names and short descriptions (NOT full schemas). Use this first to discover what tools exist.",
+            "description": "Search the available ferrss tools by keyword. Returns matching tool names and short descriptions (NOT full schemas). Use this first to discover what tools exist.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -140,7 +140,7 @@ fn build_meta_tools() -> Vec<Value> {
         }),
         json!({
             "name": "useTool",
-            "description": "Execute an autocli tool by name with arguments. Call getToolDefinition first to learn the argument schema.",
+            "description": "Execute a ferrss tool by name with arguments. Call getToolDefinition first to learn the argument schema.",
             "inputSchema": {
                 "type": "object",
                 "properties": {

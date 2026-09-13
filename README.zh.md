@@ -1,10 +1,10 @@
-# AutoCLI
-> 原名 **opencli-rs**，自 v0.2.4 起更名为 **AutoCLI**。
+# Ferrss
+> 原名 **opencli-rs**，后更名为 **AutoCLI**，自 v0.3.11 起更名为 **Ferrss**。
 
 **[English](README.md) | [中文](README.zh.md) | [日本語](README.ja.md)**
 
 <p align="center">
-  <img src="assets/title_screen.jpg" alt="autocli" width="800" />
+  <img src="assets/title_screen.jpg" alt="ferrss" width="800" />
 </p>
 
 <p align="center">
@@ -27,12 +27,12 @@
 基于 [OpenCLI](https://github.com/jackwener/opencli)（TypeScript）用 **纯 Rust 完整重写**。功能对等，**最高快 12 倍**，**内存省 10 倍**，**单文件 4.7MB**，零运行时依赖。
 
 **OpenClaw/Agent 的最佳搭档** —— 赋予你的 AI Agent 触达全网信息的能力，一行命令获取 55+ 站点的实时数据。
-**为 AI Agent 而生：** 在 `AGENT.md` 或 `.cursorrules` 中配置 `autocli list`，AI 即可自动发现所有可用工具。注册你的本地 CLI（`autocli register mycli`），AI 就能完美调用你的所有工具。
+**为 AI Agent 而生：** 在 `AGENT.md` 或 `.cursorrules` 中配置 `ferrss list`，AI 即可自动发现所有可用工具。注册你的本地 CLI（`ferrss register mycli`），AI 就能完美调用你的所有工具。
 
 
 ## 🚀 性能对比
 
-| 指标 | 🦀 autocli (Rust) | 📦 opencli (Node.js) | 提升 |
+| 指标 | 🦀 ferrss (Rust) | 📦 opencli (Node.js) | 提升 |
 |------|:-----------------:|:-----------------:|:----:|
 | 💾 **内存占用 (Public 命令)** | 15 MB | 99 MB | **6.6x** |
 | 💾 **内存占用 (Browser 命令)** | 9 MB | 95 MB | **10.6x** |
@@ -42,7 +42,7 @@
 
 **⚡ 实测命令耗时对比：**
 
-| 命令 | 🦀 autocli | 📦 opencli | 加速比 |
+| 命令 | 🦀 ferrss | 📦 opencli | 加速比 |
 |------|:----------:|:-------:|:------:|
 | `bilibili hot` | **1.66s** | 20.1s | 🔥 **12x** |
 | `zhihu hot` | **1.77s** | 20.5s | 🔥 **11.6x** |
@@ -77,9 +77,9 @@ curl -fsSL https://raw.githubusercontent.com/oouxx/Ferrss/main/scripts/install.s
 ### Windows (PowerShell)
 
 ```powershell
-Invoke-WebRequest -Uri "https://github.com/oouxx/Ferrss/releases/latest/download/autocli-x86_64-pc-windows-msvc.zip" -OutFile autocli.zip
-Expand-Archive autocli.zip -DestinationPath .
-Move-Item autocli.exe "$env:LOCALAPPDATA\Microsoft\WindowsApps\"
+Invoke-WebRequest -Uri "https://github.com/oouxx/Ferrss/releases/latest/download/ferrss-x86_64-pc-windows-msvc.zip" -OutFile ferrss.zip
+Expand-Archive ferrss.zip -DestinationPath .
+Move-Item ferrss.exe "$env:LOCALAPPDATA\Microsoft\WindowsApps\"
 ```
 
 
@@ -89,21 +89,21 @@ Move-Item autocli.exe "$env:LOCALAPPDATA\Microsoft\WindowsApps\"
 
 | 平台 | 文件 |
 |------|------|
-| macOS (Apple Silicon) | `autocli-aarch64-apple-darwin.tar.gz` |
-| macOS (Intel) | `autocli-x86_64-apple-darwin.tar.gz` |
-| Linux (x86_64) | `autocli-x86_64-unknown-linux-musl.tar.gz` |
-| Linux (ARM64) | `autocli-aarch64-unknown-linux-musl.tar.gz` |
-| Windows (x64) | `autocli-x86_64-pc-windows-msvc.zip` |
+| macOS (Apple Silicon) | `ferrss-aarch64-apple-darwin.tar.gz` |
+| macOS (Intel) | `ferrss-x86_64-apple-darwin.tar.gz` |
+| Linux (x86_64) | `ferrss-x86_64-unknown-linux-musl.tar.gz` |
+| Linux (ARM64) | `ferrss-aarch64-unknown-linux-musl.tar.gz` |
+| Windows (x64) | `ferrss-x86_64-pc-windows-msvc.zip` |
 
-解压后将 `autocli`（Windows 为 `autocli.exe`）放到系统 PATH 中即可。
+解压后将 `ferrss`（Windows 为 `ferrss.exe`）放到系统 PATH 中即可。
 
 ### 从源码编译
 
 ```bash
 git clone https://github.com/oouxx/Ferrss.git
-cd autocli
+cd Ferrss
 cargo build --release
-cp target/release/autocli /usr/local/bin/   # macOS / Linux
+cp target/release/ferrss /usr/local/bin/   # macOS / Linux
 ```
 
 ### 更新
@@ -112,62 +112,62 @@ cp target/release/autocli /usr/local/bin/   # macOS / Linux
 
 ### Chrome 扩展安装（浏览器命令需要）
 
-1. 从 [GitHub Releases](https://github.com/oouxx/Ferrss/releases/latest) 下载 `autocli-chrome-extension.zip`
+1. 从 [GitHub Releases](https://github.com/oouxx/Ferrss/releases/latest) 下载 `ferrss-chrome-extension.zip`
 2. 解压到任意目录
 3. 打开 Chrome，访问 `chrome://extensions`
 4. 开启右上角「开发者模式」
 5. 点击「加载已解压的扩展程序」，选择解压后的文件夹
-6. 扩展安装后会自动连接 autocli daemon
+6. 扩展安装后会自动连接 ferrss daemon
 
 > Public 模式命令（hackernews、devto、lobsters 等）无需安装扩展即可使用。
 
 ## Skill 安装
 
-一键为你的 AI Agent 安装 autocli skill（本 fork 版本，已去除商业/云端依赖）：
+一键为你的 AI Agent 安装 ferrss skill（本 fork 版本，已去除商业/云端依赖）：
 
 ```bash
 # 查看 skill
 npx skills add oouxx/Ferrss --list
 
 # 全局安装到 Claude Code（非交互）
-npx skills add oouxx/Ferrss -s autocli -g -a claude-code -y
+npx skills add oouxx/Ferrss -s ferrss -g -a claude-code -y
 
 # 只装指定 skill
-npx skills add oouxx/Ferrss -s autocli
+npx skills add oouxx/Ferrss -s ferrss
 ```
 
 > 需要仓库已 push 且为 **public**。手动安装见 `skills/README.md`。
 
-安装后，Agent 可直接自然语言调用 autocli（例如"查B站今日热门"）。
+安装后，Agent 可直接自然语言调用 ferrss（例如"查B站今日热门"）。
 
 ## 快速开始
 
 ```bash
 # 查看所有可用命令
-autocli --help
+ferrss --help
 
 # 查看某个站点的命令
-autocli hackernews --help
+ferrss hackernews --help
 
 # 获取 Hacker News 热门文章（公开 API，无需浏览器）
-autocli hackernews top --limit 10
+ferrss hackernews top --limit 10
 
 # JSON 格式输出
-autocli hackernews top --limit 5 --format json
+ferrss hackernews top --limit 5 --format json
 
 # 获取 Bilibili 热门视频（需要浏览器 + Cookie）
-autocli bilibili hot --limit 20
+ferrss bilibili hot --limit 20
 
 # 搜索 Twitter（需要浏览器 + 登录）
-autocli twitter search "rust lang" --limit 10
+ferrss twitter search "rust lang" --limit 10
 
 # 运行诊断
-autocli doctor
+ferrss doctor
 
 # 生成 Shell 补全
-autocli completion bash >> ~/.bashrc
-autocli completion zsh >> ~/.zshrc
-autocli completion fish > ~/.config/fish/completions/autocli.fish
+ferrss completion bash >> ~/.bashrc
+ferrss completion zsh >> ~/.zshrc
+ferrss completion fish > ~/.config/fish/completions/ferrss.fish
 ```
 
 ## AI 命令
@@ -177,35 +177,35 @@ autocli completion fish > ~/.config/fish/completions/autocli.fish
 ### 第一步：认证
 
 ```bash
-autocli auth
+ferrss auth
 ```
 
 执行后会：
 1. 自动打开浏览器到 [https://autocli.ai/get-token](https://autocli.ai/get-token)
 2. 提示你输入 Token
 3. 与服务器验证 Token 合法性
-4. 保存到 `~/.autocli/config.json`
+4. 保存到 `~/.ferrss/config.json`
 
 ### 第二步：通过 Chrome 浏览器插件，精准选择特定网站上你需要的数据，点击生成按钮后，AI 会自动分析并生成页面，扩展相关数据并生成适配器：
 
 <p align="center">
-  <img src="assets/chrome_extension_demo.jpg" alt="autocli" width="800" />
+  <img src="assets/chrome_extension_demo.jpg" alt="ferrss" width="800" />
 </p>
 
-生成完成后，就可以使用 autocli 使用新生成的指令检索需要的数据了。
+生成完成后，就可以使用 ferrss 使用新生成的指令检索需要的数据了。
 
 <p align="center">
-  <img src="assets/autocli_use.jpg" alt="autocli" width="800" />
+  <img src="assets/autocli_use.jpg" alt="ferrss" width="800" />
 </p>
 
 ### 第三步：搜索已有适配器
 
 ```bash
 # 通过 URL 搜索
-autocli search https://www.example.com
+ferrss search https://www.example.com
 
 # 直接输入域名也可以（自动补全 https://）
-autocli search example.com
+ferrss search example.com
 ```
 
 从 [autocli.ai](https://autocli.ai) 搜索社区共享的适配器。从交互式列表中选择后，自动下载并保存到本地，即可使用。
@@ -214,11 +214,11 @@ autocli search example.com
 
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
-| `AUTOCLI_API_BASE` | 覆盖服务器地址 | `https://www.autocli.ai` |
+| `FERRSS_API_BASE` | 覆盖服务器地址 | `https://www.autocli.ai` |
 
 ## 内置命令
 
-运行 `autocli --help` 查看所有可用命令。
+运行 `ferrss --help` 查看所有可用命令。
 
 | 站点 | 命令 | 模式 |
 |------|------|------|
@@ -288,20 +288,20 @@ autocli search example.com
 
 ```bash
 # 🤖 AI 驱动（推荐）：大模型分析页面并生成适配器
-autocli generate https://www.example.com --goal hot --ai
+ferrss generate https://www.example.com --goal hot --ai
 # 优先从 autocli.ai 搜索已有适配器，未找到则使用 AI 生成
 
 # 🔧 规则驱动：无需 AI 的启发式分析
-autocli generate https://www.example.com --goal hot
+ferrss generate https://www.example.com --goal hot
 
 # 探索网站 API（端点、框架、Store）
-autocli explore https://www.example.com --site mysite
+ferrss explore https://www.example.com --site mysite
 
 # 交互式模糊测试（点击按钮触发隐藏 API）
-autocli explore https://www.example.com --auto --click "评论,字幕"
+ferrss explore https://www.example.com --auto --click "评论,字幕"
 
 # 自动探测认证策略（PUBLIC → COOKIE → HEADER）
-autocli cascade https://api.example.com/hot
+ferrss cascade https://api.example.com/hot
 ```
 
 **发现能力：**
@@ -317,17 +317,17 @@ autocli cascade https://api.example.com/hot
 
 ```bash
 # 下载 B 站视频（需要 yt-dlp）
-autocli bilibili download BV1xxx --output ./videos --quality 1080p
+ferrss bilibili download BV1xxx --output ./videos --quality 1080p
 
 # 下载知乎文章为 Markdown（含配图）
-autocli zhihu download "https://zhuanlan.zhihu.com/p/xxx" --output ./articles
+ferrss zhihu download "https://zhuanlan.zhihu.com/p/xxx" --output ./articles
 
 # 下载微信公众号文章为 Markdown（含配图）
-autocli weixin download "https://mp.weixin.qq.com/s/xxx" --output ./articles
+ferrss weixin download "https://mp.weixin.qq.com/s/xxx" --output ./articles
 
 # 下载 Twitter/X 媒体（图片 + 视频）
-autocli twitter download nash_su --limit 10 --output ./twitter
-autocli twitter download --tweet-url "https://x.com/user/status/123" --output ./twitter
+ferrss twitter download nash_su --limit 10 --output ./twitter
+ferrss twitter download --tweet-url "https://x.com/user/status/123" --output ./twitter
 ```
 
 **下载特性：**
@@ -351,10 +351,10 @@ autocli twitter download --tweet-url "https://x.com/user/status/123" --output ./
 
 ```bash
 # 透传到 GitHub CLI
-autocli gh repo list
+ferrss gh repo list
 
 # 透传到 kubectl
-autocli kubectl get pods
+ferrss kubectl get pods
 ```
 
 ## 输出格式
@@ -362,11 +362,11 @@ autocli kubectl get pods
 通过 `--format` 全局参数切换输出格式：
 
 ```bash
-autocli hackernews top --format table    # ASCII 表格（默认）
-autocli hackernews top --format json     # JSON
-autocli hackernews top --format yaml     # YAML
-autocli hackernews top --format csv      # CSV
-autocli hackernews top --format md       # Markdown 表格
+ferrss hackernews top --format table    # ASCII 表格（默认）
+ferrss hackernews top --format json     # JSON
+ferrss hackernews top --format yaml     # YAML
+ferrss hackernews top --format csv      # CSV
+ferrss hackernews top --format md       # Markdown 表格
 ```
 
 ## REST API 与 RSS
@@ -377,8 +377,8 @@ autocli hackernews top --format md       # Markdown 表格
 
 ```bash
 # 启动服务（默认 http://127.0.0.1:8787）
-autocli serve
-autocli serve --host 0.0.0.0 --port 8080   # 暴露到局域网
+ferrss serve
+ferrss serve --host 0.0.0.0 --port 8080   # 暴露到局域网
 ```
 
 | 接口 | 说明 |
@@ -423,10 +423,10 @@ RSS 转换会自动识别常见字段（`title`/`name`、`url`/`link`、`descrip
 
 ## 自定义适配器
 
-在 `~/.autocli/adapters/` 下创建 YAML 文件即可添加自定义适配器：
+在 `~/.ferrss/adapters/` 下创建 YAML 文件即可添加自定义适配器：
 
 ```yaml
-# ~/.autocli/adapters/mysite/hot.yaml
+# ~/.ferrss/adapters/mysite/hot.yaml
 site: mysite
 name: hot
 description: My site hot posts
@@ -521,16 +521,16 @@ Pipeline 中使用 `${{ expression }}` 语法：
 
 | 路径 | 说明 |
 |------|------|
-| `~/.autocli/adapters/` | 用户自定义适配器 |
-| `~/.autocli/plugins/` | 用户插件 |
-| `~/.autocli/external-clis.yaml` | 用户外部 CLI 注册表 |
+| `~/.ferrss/adapters/` | 用户自定义适配器 |
+| `~/.ferrss/plugins/` | 用户插件 |
+| `~/.ferrss/external-clis.yaml` | 用户外部 CLI 注册表 |
 
 ## 架构
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                         用户 / AI Agent                         │
-│                     autocli <site> <command>                  │
+│                     ferrss <site> <command>                  │
 └─────────────────────┬───────────────────────────────────────────┘
                       │
                       ▼
@@ -574,7 +574,7 @@ Pipeline 中使用 `${{ expression }}` 语法：
 ### Workspace 结构
 
 ```
-autocli/
+Ferrss/
 ├── crates/
 │   ├── autocli-core/        # 核心数据模型：Strategy, CliCommand, Registry, IPage trait, Error
 │   ├── autocli-pipeline/    # Pipeline 引擎：pest 表达式, 执行器, 14 种步骤
@@ -595,7 +595,7 @@ autocli/
 
 ### 相比 TypeScript 原版的改进
 
-| 改进项 | 原版 (TypeScript) | autocli (Rust) |
+| 改进项 | 原版 (TypeScript) | ferrss (Rust) |
 |--------|-------------------|-------------------|
 | 分发方式 | Node.js + npm install (~100MB) | 单一二进制 (4.1MB) |
 | 启动速度 | 读 manifest JSON → 解析 → 注册 | 编译时嵌入，零文件 I/O |

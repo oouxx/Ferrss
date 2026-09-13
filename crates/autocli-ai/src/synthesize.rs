@@ -131,7 +131,7 @@ pub fn synthesize(
 /// Render a human-readable summary of the synthesize result.
 pub fn render_synthesize_summary(result: &SynthesizeResult) -> String {
     let mut lines = vec![
-        "autocli synthesize: OK".to_string(),
+        "ferrss synthesize: OK".to_string(),
         format!("Site: {}", result.site),
         format!("Candidates: {}", result.candidate_count),
     ];

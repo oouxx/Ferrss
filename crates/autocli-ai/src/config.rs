@@ -1,5 +1,5 @@
-//! Configuration file handling for autocli.
-//! Reads ~/.autocli/config.json for LLM settings and other configuration.
+//! Configuration file handling for ferrss.
+//! Reads ~/.ferrss/config.json for LLM settings and other configuration.
 
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -27,7 +27,7 @@ pub fn provider_endpoint(provider: &str) -> String {
     }
 }
 
-/// Build User-Agent string: autocli/{version} ({os}; {arch}; {lang})
+/// Build User-Agent string: ferrss/{version} ({os}; {arch}; {lang})
 pub fn user_agent() -> String {
     let version = env!("CARGO_PKG_VERSION");
     let os = if cfg!(target_os = "macos") { "macOS" }
@@ -36,7 +36,7 @@ pub fn user_agent() -> String {
         else { "Unknown" };
     let arch = std::env::consts::ARCH;
     let lang = if std::env::var("LANG").unwrap_or_default().to_lowercase().starts_with("zh") { "zh" } else { "en" };
-    format!("autocli/{} ({}; {}; {})", version, os, arch, lang)
+    format!("ferrss/{} ({}; {}; {})", version, os, arch, lang)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -55,25 +55,35 @@ impl LlmConfig {
     }
 }
 
-/// Get the config file path: ~/.autocli/config.json
+/// Get the config file path: ~/.ferrss/config.json
 pub fn config_path() -> PathBuf {
+    let home = std::env::var("HOME")
+        .or_else(|_| std::env::var("USERPROFILE"))
+        .unwrap_or_else(|_| ".".to_string());
+    PathBuf::from(home).join(".ferrss").join("config.json")
+}
+
+/// Legacy config file path: ~/.autocli/config.json (read-only fallback)
+fn legacy_config_path() -> PathBuf {
     let home = std::env::var("HOME")
         .or_else(|_| std::env::var("USERPROFILE"))
         .unwrap_or_else(|_| ".".to_string());
     PathBuf::from(home).join(".autocli").join("config.json")
 }
 
-/// Load config from ~/.autocli/config.json
+/// Load config from ~/.ferrss/config.json
+/// Falls back to the legacy ~/.autocli/config.json when the new file is missing.
 /// Returns default config if file doesn't exist or can't be parsed.
 pub fn load_config() -> Config {
-    let path = config_path();
-    match std::fs::read_to_string(&path) {
+    let content = std::fs::read_to_string(config_path())
+        .or_else(|_| std::fs::read_to_string(legacy_config_path()));
+    match content {
         Ok(content) => serde_json::from_str(&content).unwrap_or_default(),
         Err(_) => Config::default(),
     }
 }
 
-/// Save config to ~/.autocli/config.json
+/// Save config to ~/.ferrss/config.json
 pub fn save_config(config: &Config) -> Result<(), String> {
     let path = config_path();
     if let Some(parent) = path.parent() {

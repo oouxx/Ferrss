@@ -71,7 +71,7 @@ pub async fn generate_with_llm(
     let endpoint = llm.endpoint.clone().unwrap_or_default();
     if endpoint.trim().is_empty() {
         return Err(CliError::empty_result(
-            "LLM provider endpoint is not configured. Run: autocli config-llm or edit ~/.autocli/config.json (llm.endpoint)",
+            "LLM provider endpoint is not configured. Run: ferrss config-llm or edit ~/.ferrss/config.json (llm.endpoint)",
         ));
     }
 
@@ -120,7 +120,7 @@ pub async fn generate_with_llm(
 
     let resp = req.send().await.map_err(|e| CliError::Http {
         message: format!("LLM request failed: {}", e),
-        suggestions: vec!["Check the endpoint/network in ~/.autocli/config.json (llm.endpoint)".into()],
+        suggestions: vec!["Check the endpoint/network in ~/.ferrss/config.json (llm.endpoint)".into()],
         source: None,
     })?;
 
@@ -261,7 +261,7 @@ fn build_prompt(captured_data: &Value, goal: &str, site: &str) -> String {
     let captured_str = serde_json::to_string(captured_data)
         .unwrap_or_else(|_| captured_data.to_string());
     format!(
-        "Site: {site}\nGoal: {goal}\n\nGenerate an autocli adapter YAML for the \"{goal}\" data of this site.\n\nCaptured page data (JSON):\n{captured_str}"
+        "Site: {site}\nGoal: {goal}\n\nGenerate a ferrss adapter YAML for the \"{goal}\" data of this site.\n\nCaptured page data (JSON):\n{captured_str}"
     )
 }
 

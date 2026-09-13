@@ -64,20 +64,20 @@ jobs:
         if: matrix.archive == 'tar.gz'
         run: |
           cd target/${{ matrix.target }}/release
-          tar czf ../../../autocli-${{ matrix.target }}.tar.gz autocli
+          tar czf ../../../ferrss-${{ matrix.target }}.tar.gz ferrss
           cd ../../..
 
       - name: Package (Windows)
         if: matrix.archive == 'zip'
         shell: pwsh
         run: |
-          Compress-Archive -Path target/${{ matrix.target }}/release/autocli.exe -DestinationPath autocli-${{ matrix.target }}.zip
+          Compress-Archive -Path target/${{ matrix.target }}/release/ferrss.exe -DestinationPath ferrss-${{ matrix.target }}.zip
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: autocli-${{ matrix.target }}
-          path: autocli-${{ matrix.target }}.${{ matrix.archive }}
+          name: ferrss-${{ matrix.target }}
+          path: ferrss-${{ matrix.target }}.${{ matrix.archive }}
 
   extension:
     name: Build Chrome Extension
@@ -101,13 +101,13 @@ jobs:
       - name: Package extension
         run: |
           cd extension
-          zip -r ../autocli-chrome-extension.zip dist/ icons/ selector/ reader/ manifest.json
+          zip -r ../ferrss-chrome-extension.zip dist/ icons/ selector/ reader/ manifest.json
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: autocli-chrome-extension
-          path: autocli-chrome-extension.zip
+          name: ferrss-chrome-extension
+          path: ferrss-chrome-extension.zip
 
   release:
     name: Create Release
@@ -136,7 +136,7 @@ jobs:
         with:
           generate_release_notes: true
           files: |
-            artifacts/autocli-*.tar.gz
-            artifacts/autocli-*.zip
-            artifacts/autocli-chrome-extension.zip
+            artifacts/ferrss-*.tar.gz
+            artifacts/ferrss-*.zip
+            artifacts/ferrss-chrome-extension.zip
             artifacts/SHA256SUMS.txt

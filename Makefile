@@ -29,13 +29,13 @@ clean:
 
 # Install to /usr/local/bin
 install: release
-	cp target/release/opencli-rs /usr/local/bin/opencli-rs
-	@echo "✓ Installed to /usr/local/bin/opencli-rs"
+	cp target/release/ferrss /usr/local/bin/ferrss
+	@echo "✓ Installed to /usr/local/bin/ferrss"
 
 # Uninstall
 uninstall:
-	rm -f /usr/local/bin/opencli-rs
-	@echo "✓ Removed /usr/local/bin/opencli-rs"
+	rm -f /usr/local/bin/ferrss
+	@echo "✓ Removed /usr/local/bin/ferrss"
 
 # ── Cross-compilation targets ──
 

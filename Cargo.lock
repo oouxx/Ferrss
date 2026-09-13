@@ -85,34 +85,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 
 [[package]]
-name = "autocli"
-version = "0.3.10"
-dependencies = [
- "autocli-ai",
- "autocli-browser",
- "autocli-core",
- "autocli-discovery",
- "autocli-external",
- "autocli-output",
- "autocli-pipeline",
- "axum",
- "clap",
- "clap_complete",
- "colored",
- "htmd",
- "inquire",
- "reqwest",
- "serde",
- "serde_json",
- "tokio",
- "tower-http",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "autocli-ai"
-version = "0.3.10"
+version = "0.3.11"
 dependencies = [
  "async-trait",
  "autocli-browser",
@@ -129,7 +103,7 @@ dependencies = [
 
 [[package]]
 name = "autocli-browser"
-version = "0.3.10"
+version = "0.3.11"
 dependencies = [
  "async-trait",
  "autocli-core",
@@ -149,7 +123,7 @@ dependencies = [
 
 [[package]]
 name = "autocli-core"
-version = "0.3.10"
+version = "0.3.11"
 dependencies = [
  "async-trait",
  "serde",
@@ -160,7 +134,7 @@ dependencies = [
 
 [[package]]
 name = "autocli-discovery"
-version = "0.3.10"
+version = "0.3.11"
 dependencies = [
  "autocli-core",
  "autocli-pipeline",
@@ -173,7 +147,7 @@ dependencies = [
 
 [[package]]
 name = "autocli-external"
-version = "0.3.10"
+version = "0.3.11"
 dependencies = [
  "autocli-core",
  "serde",
@@ -186,7 +160,7 @@ dependencies = [
 
 [[package]]
 name = "autocli-output"
-version = "0.3.10"
+version = "0.3.11"
 dependencies = [
  "autocli-core",
  "colored",
@@ -199,7 +173,7 @@ dependencies = [
 
 [[package]]
 name = "autocli-pipeline"
-version = "0.3.10"
+version = "0.3.11"
 dependencies = [
  "async-trait",
  "autocli-core",
@@ -550,6 +524,32 @@ checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "ferrss"
+version = "0.3.11"
+dependencies = [
+ "autocli-ai",
+ "autocli-browser",
+ "autocli-core",
+ "autocli-discovery",
+ "autocli-external",
+ "autocli-output",
+ "autocli-pipeline",
+ "axum",
+ "clap",
+ "clap_complete",
+ "colored",
+ "htmd",
+ "inquire",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

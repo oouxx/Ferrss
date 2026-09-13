@@ -1,12 +1,12 @@
 #!/bin/sh
-# autocli installer — detects OS/Arch and downloads the right binary
-# Usage: curl -fsSL https://raw.githubusercontent.com/nashsu/autocli/main/scripts/install.sh | sh
+# ferrss installer — detects OS/Arch and downloads the right binary
+# Usage: curl -fsSL https://raw.githubusercontent.com/oouxx/Ferrss/main/scripts/install.sh | sh
 
 set -e
 
 REPO="oouxx/ferrss"
 INSTALL_DIR="/usr/local/bin"
-BINARY_NAME="autocli"
+BINARY_NAME="ferrss"
 
 # Colors
 RED='\033[0;31m'
@@ -84,27 +84,30 @@ fi
 
 chmod +x "${INSTALL_DIR}/${BINARY_NAME}"
 
-# Migrate from .opencli-rs to .autocli
-OLD_CONFIG="$HOME/.opencli-rs"
-NEW_CONFIG="$HOME/.autocli"
-if [ -d "$OLD_CONFIG" ]; then
+# Migrate legacy config dirs (.opencli-rs, .autocli) to .ferrss
+NEW_CONFIG="$HOME/.ferrss"
+for LEGACY_NAME in .opencli-rs .autocli; do
+    OLD_CONFIG="$HOME/$LEGACY_NAME"
+    [ -d "$OLD_CONFIG" ] || continue
     if [ -d "$NEW_CONFIG" ]; then
-        info "Both ~/.opencli-rs and ~/.autocli exist, merging..."
+        info "Both ~/$LEGACY_NAME and ~/.ferrss exist, merging..."
         cp -rn "$OLD_CONFIG/"* "$NEW_CONFIG/" 2>/dev/null || true
     else
-        info "Migrating ~/.opencli-rs to ~/.autocli..."
+        info "Migrating ~/$LEGACY_NAME to ~/.ferrss..."
         cp -r "$OLD_CONFIG" "$NEW_CONFIG"
     fi
     rm -rf "$OLD_CONFIG"
-    success "✓ Migrated config from ~/.opencli-rs to ~/.autocli"
-fi
+    success "✓ Migrated config from ~/$LEGACY_NAME to ~/.ferrss"
+done
 
-# Remove old binary if exists
-if command -v "opencli-rs" >/dev/null 2>&1; then
-    OLD_BIN=$(command -v "opencli-rs")
-    info "Removing old binary: ${OLD_BIN}"
-    rm -f "$OLD_BIN" 2>/dev/null || sudo rm -f "$OLD_BIN" 2>/dev/null || true
-fi
+# Remove old binaries if they exist
+for LEGACY_BIN in opencli-rs autocli; do
+    if command -v "$LEGACY_BIN" >/dev/null 2>&1; then
+        OLD_BIN=$(command -v "$LEGACY_BIN")
+        info "Removing old binary: ${OLD_BIN}"
+        rm -f "$OLD_BIN" 2>/dev/null || sudo rm -f "$OLD_BIN" 2>/dev/null || true
+    fi
+done
 
 # Kill old daemon and start new one
 DAEMON_PORT=19925

@@ -1428,7 +1428,7 @@ pub(crate) fn infer_capability_name(url: &str, goal: Option<&str>) -> String {
 /// Render a human-readable summary of an ExploreResult.
 pub fn render_explore_summary(result: &ExploreResult) -> String {
     let mut lines = vec![
-        "autocli probe: OK".to_string(),
+        "ferrss probe: OK".to_string(),
         format!("Site: {}", result.site),
         format!("URL: {}", result.target_url),
         format!("Title: {}", if result.title.is_empty() { "(none)" } else { &result.title }),

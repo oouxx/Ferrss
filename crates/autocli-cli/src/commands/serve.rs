@@ -65,7 +65,7 @@ pub async fn run(registry: Registry, host: String, port: u16) -> Result<(), CliE
 
     let sites = state.registry.site_count();
     let commands = state.registry.command_count();
-    eprintln!("autocli serve listening on http://{addr}");
+    eprintln!("ferrss serve listening on http://{addr}");
     eprintln!("  {sites} sites, {commands} commands");
     eprintln!("  JSON: http://{addr}/api/run/<site>/<command>");
     eprintln!("  RSS:  http://{addr}/rss/<site>/<command>");
@@ -81,7 +81,7 @@ pub async fn run(registry: Registry, host: String, port: u16) -> Result<(), CliE
 async fn health_handler() -> impl IntoResponse {
     Json(json!({
         "status": "ok",
-        "name": "autocli",
+        "name": "ferrss",
         "version": env!("CARGO_PKG_VERSION"),
     }))
 }
@@ -103,11 +103,11 @@ async fn index_handler(State(state): State<AppState>) -> Html<String> {
     }
     Html(format!(
         "<!doctype html><html><head><meta charset=\"utf-8\">\
-         <title>autocli API</title>\
+         <title>ferrss API</title>\
          <style>body{{font-family:system-ui,sans-serif;margin:2rem;max-width:1000px}}\
          table{{border-collapse:collapse;width:100%}}td,th{{border:1px solid #ddd;padding:6px 10px;text-align:left}}\
          code{{background:#f4f4f4;padding:1px 4px;border-radius:3px}}</style></head>\
-         <body><h1>autocli API</h1>\
+         <body><h1>ferrss API</h1>\
          <p>Version {version} · {sites} sites · {commands} commands</p>\
          <p><a href=\"/api/commands\">/api/commands</a> · <a href=\"/health\">/health</a></p>\
          <table><thead><tr><th>Site</th><th>Command</th><th>Description</th><th>Links</th></tr></thead>\
@@ -336,7 +336,7 @@ fn build_rss(cmd: &CliCommand, data: &Value) -> String {
         now_rfc822()
     ));
     out.push_str(&format!(
-        "  <generator>autocli {}</generator>\n",
+        "  <generator>ferrss {}</generator>\n",
         env!("CARGO_PKG_VERSION")
     ));
 
@@ -357,7 +357,7 @@ fn build_rss(cmd: &CliCommand, data: &Value) -> String {
             .filter(|s| !s.is_empty())
             .unwrap_or_else(|| {
                 if link_val.is_empty() {
-                    format!("autocli:{}:{}:{}", cmd.site, cmd.name, i)
+                    format!("ferrss:{}:{}:{}", cmd.site, cmd.name, i)
                 } else {
                     link_val.clone()
                 }

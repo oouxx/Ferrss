@@ -1,6 +1,7 @@
 use autocli_browser::{BrowserBridge, ReadArticle};
 use autocli_core::IPage;
 use htmd::HtmlToMarkdown;
+use crate::execution::env_compat;
 use std::path::Path;
 
 #[derive(Debug, Clone, Copy)]
@@ -24,8 +25,7 @@ impl Format {
 }
 
 fn daemon_port() -> u16 {
-    std::env::var("AUTOCLI_DAEMON_PORT")
-        .ok()
+    env_compat("FERRSS_DAEMON_PORT")
         .and_then(|s| s.parse().ok())
         .unwrap_or(19925)
 }

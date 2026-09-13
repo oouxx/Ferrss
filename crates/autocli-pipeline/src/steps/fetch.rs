@@ -168,7 +168,7 @@ impl FetchStep {
     pub fn new() -> Self {
         Self {
             client: reqwest::Client::builder()
-                .user_agent("autocli/0.1")
+                .user_agent("ferrss/0.1")
                 .build()
                 .unwrap_or_default(),
         }

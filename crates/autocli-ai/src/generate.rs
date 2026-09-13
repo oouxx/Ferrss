@@ -260,7 +260,7 @@ pub async fn generate_full(
 /// Render a human-readable summary of the generate result.
 pub fn render_generate_summary(r: &GenerateResult) -> String {
     let mut lines = vec![
-        format!("autocli generate: {}", if r.ok { "OK" } else { "FAIL" }),
+        format!("ferrss generate: {}", if r.ok { "OK" } else { "FAIL" }),
         format!("Site: {}", r.site),
         format!("Goal: {}", r.goal.as_deref().unwrap_or("(auto)")),
         format!("Selected: {}", r.selected_command),
@@ -443,7 +443,7 @@ mod tests {
             },
         };
         let rendered = render_generate_summary(&result);
-        assert!(rendered.contains("autocli generate: OK"));
+        assert!(rendered.contains("ferrss generate: OK"));
         assert!(rendered.contains("Site: example"));
         assert!(rendered.contains("hot"));
     }

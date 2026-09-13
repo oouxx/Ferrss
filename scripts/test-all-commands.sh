@@ -1,31 +1,31 @@
 #!/bin/bash
-# Automated test script for autocli and opencli
+# Automated test script for ferrss and opencli
 # Tests all Public and Browser mode commands, records results
 # Usage:
-#   ./scripts/test-all-commands.sh              # test autocli (default)
+#   ./scripts/test-all-commands.sh              # test ferrss (default)
 #   ./scripts/test-all-commands.sh opencli      # test original opencli
 #   ./scripts/test-all-commands.sh both         # test both side by side
 
 set -o pipefail
 
 # Parse argument
-TEST_MODE="${1:-autocli}"
+TEST_MODE="${1:-ferrss}"
 
 case "$TEST_MODE" in
-    autocli|rs)
-        BINARIES=("./target/release/autocli")
-        LABELS=("autocli")
+    ferrss|rs)
+        BINARIES=("./target/release/ferrss")
+        LABELS=("ferrss")
         ;;
     opencli|original)
         BINARIES=("opencli")
         LABELS=("opencli")
         ;;
     both|compare)
-        BINARIES=("./target/release/autocli" "opencli")
-        LABELS=("autocli" "opencli")
+        BINARIES=("./target/release/ferrss" "opencli")
+        LABELS=("ferrss" "opencli")
         ;;
     *)
-        echo "Usage: $0 [autocli|opencli|both]"
+        echo "Usage: $0 [ferrss|opencli|both]"
         exit 1
         ;;
 esac
@@ -83,13 +83,13 @@ done
 if [ ${#BINARIES[@]} -gt 1 ]; then
     COMPARE_REPORT="test-results-compare.md"
     cat > "$COMPARE_REPORT" << 'HEADER'
-# autocli vs opencli Comparison Report
+# ferrss vs opencli Comparison Report
 
 > Generated at: TIMESTAMP
 
 ## Results
 
-| Site | Command | Mode | autocli | opencli | Match? |
+| Site | Command | Mode | ferrss | opencli | Match? |
 |------|---------|------|------------|---------|--------|
 HEADER
     sed -i '' "s/TIMESTAMP/$(date '+%Y-%m-%d %H:%M:%S')/" "$COMPARE_REPORT"
@@ -324,11 +324,11 @@ echo ""
 echo "── BROWSER MODE ──"
 echo ""
 
-# Check if daemon is running (try autocli first, then opencli)
+# Check if daemon is running (try ferrss first, then opencli)
 if ! curl -s http://127.0.0.1:19825/health > /dev/null 2>&1; then
     echo "⚠️  Daemon not running. Starting daemon..."
-    if [ -f "./target/release/autocli" ]; then
-        ./target/release/autocli --daemon &
+    if [ -f "./target/release/ferrss" ]; then
+        ./target/release/ferrss --daemon &
     else
         opencli --daemon 2>/dev/null &
     fi

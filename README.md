@@ -1,10 +1,10 @@
-# AutoCLI
-> Formerly known as **opencli-rs**. Renamed to **AutoCLI** starting from v0.2.4.
+# Ferrss
+> Formerly known as **opencli-rs**, then **AutoCLI**. Renamed to **Ferrss** starting from v0.3.11.
 
 **[English](README.md) | [中文](README.zh.md) | [日本語](README.ja.md)**
 
 <p align="center">
-  <img src="assets/title_screen.jpg" alt="autocli" width="800" />
+  <img src="assets/title_screen.jpg" alt="ferrss" width="800" />
 </p>
 
 <p align="center">
@@ -27,12 +27,12 @@ Blazing fast, memory-safe command-line tool — **Fetch information from any web
 A **complete rewrite in pure Rust** based on [OpenCLI](https://github.com/jackwener/opencli) (TypeScript). Feature-equivalent, **up to 12x faster**, **10x less memory**, **single 4.7MB binary**, zero runtime dependencies.
 
 **The perfect companion for OpenClaw/Agent** — Give your AI Agent the ability to reach information across the entire web, fetching real-time data from 55+ sites with a single command.
-**Built for AI Agents:** Configure `autocli list` in `AGENT.md` or `.cursorrules`, and AI can automatically discover all available tools. Register your local CLI (`autocli register mycli`), and AI can seamlessly invoke all your tools.
+**Built for AI Agents:** Configure `ferrss list` in `AGENT.md` or `.cursorrules`, and AI can automatically discover all available tools. Register your local CLI (`ferrss register mycli`), and AI can seamlessly invoke all your tools.
 
 
 ## 🚀 Performance Comparison
 
-| Metric | 🦀 autocli (Rust) | 📦 opencli (Node.js) | Improvement |
+| Metric | 🦀 ferrss (Rust) | 📦 opencli (Node.js) | Improvement |
 |------|:-----------------:|:-----------------:|:----:|
 | 💾 **Memory Usage (Public Commands)** | 15 MB | 99 MB | **6.6x** |
 | 💾 **Memory Usage (Browser Commands)** | 9 MB | 95 MB | **10.6x** |
@@ -42,7 +42,7 @@ A **complete rewrite in pure Rust** based on [OpenCLI](https://github.com/jackwe
 
 **⚡ Real-world Command Timing Comparison:**
 
-| Command | 🦀 autocli | 📦 opencli | Speedup |
+| Command | 🦀 ferrss | 📦 opencli | Speedup |
 |------|:----------:|:-------:|:------:|
 | `bilibili hot` | **1.66s** | 20.1s | 🔥 **12x** |
 | `zhihu hot` | **1.77s** | 20.5s | 🔥 **11.6x** |
@@ -77,9 +77,9 @@ Automatically detects your system and architecture, downloads the corresponding 
 ### Windows (PowerShell)
 
 ```powershell
-Invoke-WebRequest -Uri "https://github.com/oouxx/Ferrss/releases/latest/download/autocli-x86_64-pc-windows-msvc.zip" -OutFile autocli.zip
-Expand-Archive autocli.zip -DestinationPath .
-Move-Item autocli.exe "$env:LOCALAPPDATA\Microsoft\WindowsApps\"
+Invoke-WebRequest -Uri "https://github.com/oouxx/Ferrss/releases/latest/download/ferrss-x86_64-pc-windows-msvc.zip" -OutFile ferrss.zip
+Expand-Archive ferrss.zip -DestinationPath .
+Move-Item ferrss.exe "$env:LOCALAPPDATA\Microsoft\WindowsApps\"
 ```
 
 
@@ -89,21 +89,21 @@ Download the file for your platform from [GitHub Releases](https://github.com/oo
 
 | Platform | File |
 |------|------|
-| macOS (Apple Silicon) | `autocli-aarch64-apple-darwin.tar.gz` |
-| macOS (Intel) | `autocli-x86_64-apple-darwin.tar.gz` |
-| Linux (x86_64) | `autocli-x86_64-unknown-linux-musl.tar.gz` |
-| Linux (ARM64) | `autocli-aarch64-unknown-linux-musl.tar.gz` |
-| Windows (x64) | `autocli-x86_64-pc-windows-msvc.zip` |
+| macOS (Apple Silicon) | `ferrss-aarch64-apple-darwin.tar.gz` |
+| macOS (Intel) | `ferrss-x86_64-apple-darwin.tar.gz` |
+| Linux (x86_64) | `ferrss-x86_64-unknown-linux-musl.tar.gz` |
+| Linux (ARM64) | `ferrss-aarch64-unknown-linux-musl.tar.gz` |
+| Windows (x64) | `ferrss-x86_64-pc-windows-msvc.zip` |
 
-After extracting, place `autocli` (or `autocli.exe` on Windows) in your system PATH.
+After extracting, place `ferrss` (or `ferrss.exe` on Windows) in your system PATH.
 
 ### Build from Source
 
 ```bash
 git clone https://github.com/oouxx/Ferrss.git
-cd autocli
+cd Ferrss
 cargo build --release
-cp target/release/autocli /usr/local/bin/   # macOS / Linux
+cp target/release/ferrss /usr/local/bin/   # macOS / Linux
 ```
 
 ### Update
@@ -112,62 +112,62 @@ Simply re-run the install command or download the latest release to overwrite th
 
 ### Chrome Extension Setup (required for browser commands)
 
-1. Download `autocli-chrome-extension.zip` from [GitHub Releases](https://github.com/oouxx/Ferrss/releases/latest)
+1. Download `ferrss-chrome-extension.zip` from [GitHub Releases](https://github.com/oouxx/Ferrss/releases/latest)
 2. Extract to any directory
 3. Open Chrome and go to `chrome://extensions`
 4. Enable "Developer mode" (top right toggle)
 5. Click "Load unpacked" and select the extracted folder
-6. The extension will automatically connect to the autocli daemon
+6. The extension will automatically connect to the ferrss daemon
 
 > Public mode commands (hackernews, devto, lobsters, etc.) work without the extension.
 
 ## Skill Install
 
-One-click install the autocli skill for your AI Agent (this fork version, commercial/cloud deps removed):
+One-click install the ferrss skill for your AI Agent (this fork version, commercial/cloud deps removed):
 
 ```bash
 # List the skill
 npx skills add oouxx/Ferrss --list
 
 # Global install to Claude Code (non-interactive)
-npx skills add oouxx/Ferrss -s autocli -g -a claude-code -y
+npx skills add oouxx/Ferrss -s ferrss -g -a claude-code -y
 
 # Install the specific skill only
-npx skills add oouxx/Ferrss -s autocli
+npx skills add oouxx/Ferrss -s ferrss
 ```
 
 > Requires the repo to be pushed and **public**. Manual install: see `skills/README.md`.
 
-After install, agents can call autocli via natural language (e.g. "get today's Bilibili trending").
+After install, agents can call ferrss via natural language (e.g. "get today's Bilibili trending").
 
 ## Quick Start
 
 ```bash
 # View all available commands
-autocli --help
+ferrss --help
 
 # View commands for a specific site
-autocli hackernews --help
+ferrss hackernews --help
 
 # Get Hacker News top stories (public API, no browser needed)
-autocli hackernews top --limit 10
+ferrss hackernews top --limit 10
 
 # JSON format output
-autocli hackernews top --limit 5 --format json
+ferrss hackernews top --limit 5 --format json
 
 # Get Bilibili trending videos (requires browser + Cookie)
-autocli bilibili hot --limit 20
+ferrss bilibili hot --limit 20
 
 # Search Twitter (requires browser + login)
-autocli twitter search "rust lang" --limit 10
+ferrss twitter search "rust lang" --limit 10
 
 # Run diagnostics
-autocli doctor
+ferrss doctor
 
 # Generate shell completions
-autocli completion bash >> ~/.bashrc
-autocli completion zsh >> ~/.zshrc
-autocli completion fish > ~/.config/fish/completions/autocli.fish
+ferrss completion bash >> ~/.bashrc
+ferrss completion zsh >> ~/.zshrc
+ferrss completion fish > ~/.config/fish/completions/ferrss.fish
 ```
 
 ## AI Commands
@@ -177,35 +177,35 @@ autocli completion fish > ~/.config/fish/completions/autocli.fish
 ### Step 1: Authenticate
 
 ```bash
-autocli auth
+ferrss auth
 ```
 
 This will:
 1. Open your browser to [https://autocli.ai/get-token](https://autocli.ai/get-token)
 2. Prompt you to enter the token
 3. Verify the token with the server
-4. Save it to `~/.autocli/config.json`
+4. Save it to `~/.ferrss/config.json`
 
 ### Step 2: Use the Chrome Extension to precisely select the data you need from any website. Click the Generate button, and AI will automatically analyze the page, expand related data, and generate an adapter:
 
 <p align="center">
-  <img src="assets/chrome_extension_demo.jpg" alt="autocli" width="800" />
+  <img src="assets/chrome_extension_demo.jpg" alt="ferrss" width="800" />
 </p>
 
-Once generation is complete, you can use autocli with the newly generated command to retrieve the data you need.
+Once generation is complete, you can use ferrss with the newly generated command to retrieve the data you need.
 
 <p align="center">
-  <img src="assets/autocli_use.jpg" alt="autocli" width="800" />
+  <img src="assets/autocli_use.jpg" alt="ferrss" width="800" />
 </p>
 
 ### Step 3: Search Existing Adapters
 
 ```bash
 # Search by URL
-autocli search https://www.example.com
+ferrss search https://www.example.com
 
 # Domain name also works (auto-prepends https://)
-autocli search example.com
+ferrss search example.com
 ```
 
 Searches [autocli.ai](https://autocli.ai) for community-shared adapters matching the URL. Select one from the interactive list to download and save it locally — ready to use immediately.
@@ -214,11 +214,11 @@ Searches [autocli.ai](https://autocli.ai) for community-shared adapters matching
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `AUTOCLI_API_BASE` | Override server URL | `https://www.autocli.ai` |
+| `FERRSS_API_BASE` | Override server URL | `https://www.autocli.ai` |
 
 ## Built-in Commands
 
-Run `autocli --help` to see all available commands.
+Run `ferrss --help` to see all available commands.
 
 | Site | Commands | Mode |
 |------|------|------|
@@ -288,20 +288,20 @@ Two approaches to auto-generate adapters:
 
 ```bash
 # 🤖 AI-powered (recommended): LLM analyzes page and generates adapter
-autocli generate https://www.example.com --goal hot --ai
+ferrss generate https://www.example.com --goal hot --ai
 # Searches autocli.ai for existing adapters first, then generates with AI if needed
 
 # 🔧 Rule-based: heuristic analysis without AI
-autocli generate https://www.example.com --goal hot
+ferrss generate https://www.example.com --goal hot
 
 # Explore website API surface (endpoints, framework, stores)
-autocli explore https://www.example.com --site mysite
+ferrss explore https://www.example.com --site mysite
 
 # With interactive fuzzing (click buttons to trigger hidden APIs)
-autocli explore https://www.example.com --auto --click "Comments,CC"
+ferrss explore https://www.example.com --auto --click "Comments,CC"
 
 # Auto-detect authentication strategy (PUBLIC → COOKIE → HEADER)
-autocli cascade https://api.example.com/hot
+ferrss cascade https://api.example.com/hot
 ```
 
 **Discovery features:**
@@ -317,17 +317,17 @@ Download media and articles from supported sites:
 
 ```bash
 # Download Bilibili video (requires yt-dlp)
-autocli bilibili download BV1xxx --output ./videos --quality 1080p
+ferrss bilibili download BV1xxx --output ./videos --quality 1080p
 
 # Download Zhihu article as Markdown with images
-autocli zhihu download "https://zhuanlan.zhihu.com/p/xxx" --output ./articles
+ferrss zhihu download "https://zhuanlan.zhihu.com/p/xxx" --output ./articles
 
 # Download WeChat article as Markdown with images
-autocli weixin download "https://mp.weixin.qq.com/s/xxx" --output ./articles
+ferrss weixin download "https://mp.weixin.qq.com/s/xxx" --output ./articles
 
 # Download Twitter/X media (images + videos)
-autocli twitter download nash_su --limit 10 --output ./twitter
-autocli twitter download --tweet-url "https://x.com/user/status/123" --output ./twitter
+ferrss twitter download nash_su --limit 10 --output ./twitter
+ferrss twitter download --tweet-url "https://x.com/user/status/123" --output ./twitter
 ```
 
 **Download features:**
@@ -351,10 +351,10 @@ Integrated external tools (passthrough execution):
 
 ```bash
 # Passthrough to GitHub CLI
-autocli gh repo list
+ferrss gh repo list
 
 # Passthrough to kubectl
-autocli kubectl get pods
+ferrss kubectl get pods
 ```
 
 ## Output Formats
@@ -362,11 +362,11 @@ autocli kubectl get pods
 Switch output format via the `--format` global flag:
 
 ```bash
-autocli hackernews top --format table    # ASCII table (default)
-autocli hackernews top --format json     # JSON
-autocli hackernews top --format yaml     # YAML
-autocli hackernews top --format csv      # CSV
-autocli hackernews top --format md       # Markdown table
+ferrss hackernews top --format table    # ASCII table (default)
+ferrss hackernews top --format json     # JSON
+ferrss hackernews top --format yaml     # YAML
+ferrss hackernews top --format csv      # CSV
+ferrss hackernews top --format md       # Markdown table
 ```
 
 ## REST API & RSS
@@ -377,8 +377,8 @@ Inoreader, …) can subscribe to a site directly.
 
 ```bash
 # Start the server (defaults to http://127.0.0.1:8787)
-autocli serve
-autocli serve --host 0.0.0.0 --port 8080   # expose on the LAN
+ferrss serve
+ferrss serve --host 0.0.0.0 --port 8080   # expose on the LAN
 ```
 
 | Endpoint | Description |
@@ -425,10 +425,10 @@ Each command uses a different authentication strategy:
 
 ## Custom Adapters
 
-Add custom adapters by creating YAML files under `~/.autocli/adapters/`:
+Add custom adapters by creating YAML files under `~/.ferrss/adapters/`:
 
 ```yaml
-# ~/.autocli/adapters/mysite/hot.yaml
+# ~/.ferrss/adapters/mysite/hot.yaml
 site: mysite
 name: hot
 description: My site hot posts
@@ -523,16 +523,16 @@ Pipelines use the `${{ expression }}` syntax:
 
 | Path | Description |
 |------|------|
-| `~/.autocli/adapters/` | User custom adapters |
-| `~/.autocli/plugins/` | User plugins |
-| `~/.autocli/external-clis.yaml` | User external CLI registry |
+| `~/.ferrss/adapters/` | User custom adapters |
+| `~/.ferrss/plugins/` | User plugins |
+| `~/.ferrss/external-clis.yaml` | User external CLI registry |
 
 ## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                       User / AI Agent                           │
-│                     autocli <site> <command>                  │
+│                     ferrss <site> <command>                  │
 └─────────────────────┬───────────────────────────────────────────┘
                       │
                       ▼
@@ -577,7 +577,7 @@ Pipelines use the `${{ expression }}` syntax:
 ### Workspace Structure
 
 ```
-autocli/
+Ferrss/
 ├── crates/
 │   ├── autocli-core/        # Core data models: Strategy, CliCommand, Registry, IPage trait, Error
 │   ├── autocli-pipeline/    # Pipeline engine: pest expressions, executor, 14 step types
@@ -598,7 +598,7 @@ autocli/
 
 ### Improvements over the TypeScript Original
 
-| Improvement | Original (TypeScript) | autocli (Rust) |
+| Improvement | Original (TypeScript) | ferrss (Rust) |
 |--------|-------------------|-------------------|
 | Distribution | Node.js + npm install (~100MB) | Single binary (4.1MB) |
 | Startup speed | Read manifest JSON → parse → register | Compile-time embedding, zero file I/O |

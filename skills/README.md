@@ -1,6 +1,6 @@
-# autocli Skill
+# ferrss Skill
 
-让 AI Agent（Claude Code、Codex、OpenCode、Cursor 等）通过终端直接调用 `autocli` 抓取 55+ 网站数据。
+让 AI Agent（Claude Code、Codex、OpenCode、Cursor 等）通过终端直接调用 `ferrss` 抓取 55+ 网站数据。
 
 这是本 fork（Ferrss）的自定义 skill，已去除 autocli.ai 商业/云端依赖，并支持本地 LLM（`config-llm`）与 MCP。
 
@@ -15,10 +15,10 @@
 npx skills add oouxx/Ferrss --list
 
 # 全局安装到 Claude Code（非交互）
-npx skills add oouxx/Ferrss -s autocli -g -a claude-code -y
+npx skills add oouxx/Ferrss -s ferrss -g -a claude-code -y
 
 # 只装指定 skill
-npx skills add oouxx/Ferrss -s autocli
+npx skills add oouxx/Ferrss -s ferrss
 
 # 完整 URL 形式
 npx skills add https://github.com/oouxx/Ferrss
@@ -27,20 +27,20 @@ npx skills add https://github.com/oouxx/Ferrss
 ### 方式二：手动拷贝（Claude Code）
 
 ```bash
-mkdir -p ~/.claude/skills/autocli
-cp skills/autocli/SKILL.md ~/.claude/skills/autocli/SKILL.md
+mkdir -p ~/.claude/skills/ferrss
+cp skills/ferrss/SKILL.md ~/.claude/skills/ferrss/SKILL.md
 ```
 
 项目级（可选，随仓库提交共享）：
 ```bash
-mkdir -p .claude/skills/autocli
-cp skills/autocli/SKILL.md .claude/skills/autocli/SKILL.md
+mkdir -p .claude/skills/ferrss
+cp skills/ferrss/SKILL.md .claude/skills/ferrss/SKILL.md
 ```
 
 ### 方式三：从本地路径测试
 
 ```bash
-npx skills add ./skills -s autocli
+npx skills add ./skills -s ferrss
 ```
 
 ## 使用
@@ -55,18 +55,18 @@ npx skills add ./skills -s autocli
 读取这个文章链接的内容: https://example.com/article
 ```
 
-Agent 会自动调用 `autocli` 完成。
+Agent 会自动调用 `ferrss` 完成。
 
 ## 前置条件
 
 - Chrome 已打开并登录目标网站
-- autocli Chrome 扩展已安装（浏览器命令需要）
-- daemon 在运行（`autocli doctor` 诊断）
+- ferrss Chrome 扩展已安装（浏览器命令需要）
+- daemon 在运行（`ferrss doctor` 诊断）
 
 ## 本地 LLM（generate --ai）
 
 ```bash
-autocli config-llm --provider ollama --model llama3
-autocli generate <url> --ai --goal hot
+ferrss config-llm --provider ollama --model llama3
+ferrss generate <url> --ai --goal hot
 ```
 详见主仓库 README。
