@@ -10,10 +10,15 @@
 //!
 //! Query parameters are passed through as command arguments using the same
 //! coercion/validation path as the CLI, so `?limit=10` works for an `int` arg.
+//!
+//! Commands that drive the browser extension are serialised behind a queue:
+//! the extension owns a single Chrome automation window, so two concurrent
+//! browser commands would clobber each other's tab. Plain-HTTP commands are
+//! never gated and keep running in parallel.
 
 use axum::{
     extract::{Path, Query, State},
-    http::{header, StatusCode},
+    http::{header, HeaderValue, StatusCode},
     response::{Html, IntoResponse, Response},
     routing::get,
     Json, Router,
@@ -26,6 +31,7 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use tokio::sync::Semaphore;
 
 use crate::args::coerce_and_validate_args;
 use crate::execution::execute_command;
@@ -33,12 +39,75 @@ use crate::execution::execute_command;
 #[derive(Clone)]
 struct AppState {
     registry: Arc<Registry>,
+    browser_gate: Arc<BrowserGate>,
+}
+
+/// How many requests may wait for the browser slot before load is shed.
+const BROWSER_QUEUE_CAPACITY: usize = 8;
+
+/// How long a request may wait for the browser slot. Kept below the timeout of
+/// any reverse proxy in front so callers get a clean 503 instead of a cut
+/// connection.
+const BROWSER_WAIT_TIMEOUT: Duration = Duration::from_secs(240);
+
+/// Serialises commands that drive the browser extension.
+///
+/// The extension has exactly one automation window, so running two browser
+/// commands at once makes them fight over the same tab (the loser reports
+/// `No tab with id`). Instead of failing, extra requests wait for their turn;
+/// only a full wait queue or an expired wait is rejected.
+struct BrowserGate {
+    /// One permit: a single browser command may run at a time.
+    run: Semaphore,
+    /// Bounds how many requests may be waiting for `run`.
+    queue: Semaphore,
+}
+
+impl BrowserGate {
+    fn new() -> Self {
+        Self {
+            run: Semaphore::new(1),
+            queue: Semaphore::new(BROWSER_QUEUE_CAPACITY),
+        }
+    }
+
+    async fn acquire(&self) -> Result<BrowserSlot<'_>, GateError> {
+        let queued = self.queue.try_acquire().map_err(|_| GateError::QueueFull)?;
+        match tokio::time::timeout(BROWSER_WAIT_TIMEOUT, self.run.acquire()).await {
+            Ok(Ok(running)) => Ok(BrowserSlot {
+                _queued: queued,
+                _running: running,
+            }),
+            Ok(Err(_)) => Err(GateError::Closed),
+            Err(_) => Err(GateError::Timeout),
+        }
+    }
+}
+
+/// Holds the queue and run permits; both are released when dropped.
+struct BrowserSlot<'a> {
+    _queued: tokio::sync::SemaphorePermit<'a>,
+    _running: tokio::sync::SemaphorePermit<'a>,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum GateError {
+    QueueFull,
+    Timeout,
+    Closed,
+}
+
+/// Result of running a command through `execute_with_params`.
+enum ExecuteError {
+    Command(CliError),
+    BrowserBusy(GateError),
 }
 
 /// Run the REST/RSS server. Blocks until the process is terminated.
 pub async fn run(registry: Registry, host: String, port: u16) -> Result<(), CliError> {
     let state = AppState {
         registry: Arc::new(registry),
+        browser_gate: Arc::new(BrowserGate::new()),
     };
 
     let cors = tower_http::cors::CorsLayer::new()
@@ -177,7 +246,7 @@ async fn run_handler(
         }
     };
 
-    let data = match execute_with_params(cmd, &params).await {
+    let data = match execute_with_params(&state, cmd, &params).await {
         Ok(d) => d,
         Err(e) => return execute_error_response(e),
     };
@@ -238,7 +307,7 @@ async fn rss_handler(
         }
     };
 
-    let data = match execute_with_params(cmd, &params).await {
+    let data = match execute_with_params(&state, cmd, &params).await {
         Ok(d) => d,
         Err(e) => return execute_error_response(e),
     };
@@ -260,9 +329,29 @@ async fn rss_handler(
 // ── Shared helpers ──────────────────────────────────────────────
 
 async fn execute_with_params(
+    state: &AppState,
     cmd: &CliCommand,
     params: &HashMap<String, String>,
-) -> Result<Value, CliError> {
+) -> Result<Value, ExecuteError> {
+    // Browser-driven commands must not overlap: the Chrome extension owns a
+    // single automation window, so concurrent requests clobber each other's
+    // tab. Wait for the slot instead of failing; nothing is held for
+    // HTTP-only commands.
+    let _browser_slot = if cmd.needs_browser() {
+        match state.browser_gate.acquire().await {
+            Ok(slot) => {
+                tracing::debug!(command = %cmd.full_name(), "acquired browser slot");
+                Some(slot)
+            }
+            Err(e) => {
+                tracing::warn!(command = %cmd.full_name(), reason = ?e, "browser slot unavailable");
+                return Err(ExecuteError::BrowserBusy(e));
+            }
+        }
+    } else {
+        None
+    };
+
     // Only pass through query params that the command actually declares.
     let mut raw: HashMap<String, String> = HashMap::new();
     for arg in &cmd.args {
@@ -270,8 +359,8 @@ async fn execute_with_params(
             raw.insert(arg.name.clone(), v.clone());
         }
     }
-    let kwargs = coerce_and_validate_args(&cmd.args, &raw)?;
-    execute_command(cmd, kwargs).await
+    let kwargs = coerce_and_validate_args(&cmd.args, &raw).map_err(ExecuteError::Command)?;
+    execute_command(cmd, kwargs).await.map_err(ExecuteError::Command)
 }
 
 fn command_schema(cmd: &CliCommand) -> Value {
@@ -305,8 +394,26 @@ fn error_response(status: StatusCode, message: &str) -> Response {
     (status, Json(json!({ "ok": false, "error": message }))).into_response()
 }
 
-fn execute_error_response(err: CliError) -> Response {
-    error_response(StatusCode::BAD_GATEWAY, &err.to_string())
+fn execute_error_response(err: ExecuteError) -> Response {
+    match err {
+        ExecuteError::Command(err) => error_response(StatusCode::BAD_GATEWAY, &err.to_string()),
+        ExecuteError::BrowserBusy(reason) => {
+            let message = match reason {
+                GateError::QueueFull => {
+                    "Too many browser commands are already queued; retry shortly"
+                }
+                GateError::Timeout => {
+                    "Timed out waiting for the browser: another browser command is still running"
+                }
+                GateError::Closed => "Browser queue is unavailable",
+            };
+            let mut response = error_response(StatusCode::SERVICE_UNAVAILABLE, message);
+            response
+                .headers_mut()
+                .insert(header::RETRY_AFTER, HeaderValue::from_static("10"));
+            response
+        }
+    }
 }
 
 // ── RSS rendering ───────────────────────────────────────────────
@@ -640,4 +747,77 @@ fn civil_from_days(z: i64) -> (i64, i64, i64) {
     let d = doy - (153 * mp + 2) / 5 + 1;
     let m = if mp < 10 { mp + 3 } else { mp - 9 };
     (y + i64::from(m <= 2), m, d)
+}
+
+#[cfg(test)]
+mod browser_gate_tests {
+    use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    #[tokio::test]
+    async fn serialises_browser_access() {
+        let gate = BrowserGate::new();
+
+        let held = gate.acquire().await.expect("first acquire succeeds");
+
+        // While a browser command is running, the next one waits instead of
+        // failing.
+        let waiting = tokio::time::timeout(Duration::from_millis(50), gate.acquire()).await;
+        assert!(waiting.is_err(), "second acquire must not complete while the first is held");
+
+        drop(held);
+
+        // Once the first command finishes, the waiter gets the slot.
+        let after_release = tokio::time::timeout(Duration::from_secs(1), gate.acquire()).await;
+        assert!(after_release.is_ok(), "slot must be usable after the holder is dropped");
+    }
+
+    #[tokio::test]
+    async fn shed_load_when_wait_queue_is_full() {
+        let gate = Arc::new(BrowserGate::new());
+        let held = gate.acquire().await.expect("holds the run slot");
+
+        let mut waiters = Vec::new();
+        for _ in 0..BROWSER_QUEUE_CAPACITY {
+            let gate = gate.clone();
+            waiters.push(tokio::spawn(async move {
+                // Hold the slot until the test drops the task, so the queue
+                // stays full.
+                let slot = gate.acquire().await;
+                std::future::pending::<()>().await;
+                drop(slot);
+            }));
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
+        // The run slot is held and the wait queue is full: new work is shed
+        // immediately rather than piling up.
+        match gate.acquire().await {
+            Err(GateError::QueueFull) => {}
+            Err(other) => panic!("expected QueueFull, got {other:?}"),
+            Ok(_) => panic!("expected QueueFull, got a slot"),
+        }
+
+        drop(held);
+        for waiter in waiters {
+            waiter.abort();
+        }
+    }
+
+    #[tokio::test]
+    async fn queue_slots_are_released_after_use() {
+        let gate = BrowserGate::new();
+        let peak = Arc::new(AtomicUsize::new(0));
+        let running = Arc::new(AtomicUsize::new(0));
+
+        for _ in 0..(BROWSER_QUEUE_CAPACITY * 3) {
+            let slot = gate.acquire().await.expect("queue slot available");
+            let now = running.fetch_add(1, Ordering::SeqCst) + 1;
+            peak.fetch_max(now, Ordering::SeqCst);
+            running.fetch_sub(1, Ordering::SeqCst);
+            drop(slot);
+        }
+
+        assert_eq!(peak.load(Ordering::SeqCst), 1, "only one browser command may run at a time");
+    }
 }

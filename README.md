@@ -396,6 +396,12 @@ ferrss serve --host 0.0.0.0 --port 8080   # expose on the LAN
 Query parameters are coerced and validated with the same rules as the CLI, so
 `?limit=10` is parsed as an integer.
 
+Browser-driven commands (those using the Chrome extension) run **one at a time**:
+the extension owns a single automation window, so parallel requests are queued
+rather than failing. If the queue is full, or a request waits longer than four
+minutes, the server answers `503` with a `Retry-After` header. Commands that only
+use plain HTTP are never queued and keep running in parallel.
+
 ```bash
 # JSON
 curl 'http://127.0.0.1:8787/api/run/hackernews/top?limit=5'
