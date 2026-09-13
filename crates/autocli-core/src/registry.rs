@@ -1,7 +1,7 @@
 use crate::CliCommand;
 use std::collections::HashMap;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct Registry {
     commands: HashMap<String, HashMap<String, CliCommand>>,
 }

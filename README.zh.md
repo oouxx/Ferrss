@@ -369,6 +369,46 @@ autocli hackernews top --format csv      # CSV
 autocli hackernews top --format md       # Markdown 表格
 ```
 
+## REST API 与 RSS
+
+把整个适配器注册表变成一个本地 HTTP 服务 —— 每个命令都会变成一个 JSON 接口
+和一个 RSS 2.0 订阅源，任何阅读器（FreshRSS、NetNewsWire、Feedly、Inoreader 等）
+都能直接订阅。
+
+```bash
+# 启动服务（默认 http://127.0.0.1:8787）
+autocli serve
+autocli serve --host 0.0.0.0 --port 8080   # 暴露到局域网
+```
+
+| 接口 | 说明 |
+|------|------|
+| `GET /` | HTML 索引页，列出所有可用订阅源 |
+| `GET /health` | 健康检查 / 版本 |
+| `GET /api/sites` | 列出站点及其命令 |
+| `GET /api/commands` | 完整命令目录（含参数 schema） |
+| `GET /api/sites/{site}` | 某个站点的所有命令 |
+| `GET /api/run/{site}/{command}?limit=10` | 执行命令，返回 JSON（或 `?format=md\|csv\|yaml\|table`） |
+| `GET /rss/{site}/{command}?limit=10` | 执行命令，返回 RSS 2.0 订阅源 |
+
+查询参数使用与 CLI 完全相同的类型转换与校验规则，因此 `?limit=10` 会自动解析为整数。
+
+```bash
+# JSON
+curl 'http://127.0.0.1:8787/api/run/hackernews/top?limit=5'
+
+# RSS
+curl 'http://127.0.0.1:8787/rss/hackernews/top?limit=20'
+
+# 在阅读器中订阅
+# https://news.ycombinator.com -> 订阅 http://<host>:8787/rss/hackernews/top
+```
+
+RSS 转换会自动识别常见字段（`title`/`name`、`url`/`link`、`description`/`summary`，
+以及 `date`、`published_at`、`created_at` 等时间字段），其余字段会回退为
+`key: value` 摘要。需要浏览器/桌面会话的命令同样可用，只要守护进程和 Chrome
+扩展在运行。
+
 ## 认证策略
 
 每个命令使用不同的认证策略：

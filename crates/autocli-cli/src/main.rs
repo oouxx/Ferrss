@@ -18,7 +18,7 @@ use std::str::FromStr;
 use tracing_subscriber::EnvFilter;
 
 use crate::args::coerce_and_validate_args;
-use crate::commands::{completion, doctor, mcp, read};
+use crate::commands::{completion, doctor, mcp, read, serve};
 use crate::execution::execute_command;
 
 fn build_cli(registry: &Registry, external_clis: &[ExternalCli]) -> Command {
@@ -136,6 +136,23 @@ fn build_cli(registry: &Registry, external_clis: &[ExternalCli]) -> Command {
         .subcommand(
             Command::new("mcp")
                 .about("Run an MCP server over stdio (expose adapter commands as tools to agents)"),
+        )
+        .subcommand(
+            Command::new("serve")
+                .about("Run a REST API server exposing adapters as JSON + RSS feeds")
+                .arg(
+                    Arg::new("port")
+                        .long("port")
+                        .short('p')
+                        .default_value("8787")
+                        .help("Port to listen on (default: 8787)"),
+                )
+                .arg(
+                    Arg::new("host")
+                        .long("host")
+                        .default_value("127.0.0.1")
+                        .help("Host/interface to bind (default: 127.0.0.1; use 0.0.0.0 to expose)"),
+                ),
         )
         .subcommand(
             Command::new("read")
@@ -481,6 +498,21 @@ async fn main() {
                 match mcp::run_mcp(&registry).await {
                     Ok(()) => {}
                     Err(e) => { print_error(&e); std::process::exit(1); }
+                }
+                return;
+            }
+            "serve" => {
+                let port: u16 = site_matches
+                    .get_one::<String>("port")
+                    .and_then(|s| s.parse().ok())
+                    .unwrap_or(8787);
+                let host = site_matches
+                    .get_one::<String>("host")
+                    .cloned()
+                    .unwrap_or_else(|| "127.0.0.1".to_string());
+                if let Err(e) = serve::run(registry.clone(), host, port).await {
+                    print_error(&e);
+                    std::process::exit(1);
                 }
                 return;
             }

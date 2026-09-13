@@ -369,6 +369,48 @@ autocli hackernews top --format csv      # CSV
 autocli hackernews top --format md       # Markdown table
 ```
 
+## REST API & RSS
+
+Turn the whole adapter registry into a local HTTP service — every command becomes
+a JSON endpoint and an RSS 2.0 feed, so any reader (FreshRSS, NetNewsWire, Feedly,
+Inoreader, …) can subscribe to a site directly.
+
+```bash
+# Start the server (defaults to http://127.0.0.1:8787)
+autocli serve
+autocli serve --host 0.0.0.0 --port 8080   # expose on the LAN
+```
+
+| Endpoint | Description |
+|------|------|
+| `GET /` | HTML index of every available feed |
+| `GET /health` | Health/version check |
+| `GET /api/sites` | List sites and their commands |
+| `GET /api/commands` | Full command catalog with argument schemas |
+| `GET /api/sites/{site}` | Commands for one site |
+| `GET /api/run/{site}/{command}?limit=10` | Execute a command, return JSON (or `?format=md\|csv\|yaml\|table`) |
+| `GET /rss/{site}/{command}?limit=10` | Execute a command, return an RSS 2.0 feed |
+
+Query parameters are coerced and validated with the same rules as the CLI, so
+`?limit=10` is parsed as an integer.
+
+```bash
+# JSON
+curl 'http://127.0.0.1:8787/api/run/hackernews/top?limit=5'
+
+# RSS
+curl 'http://127.0.0.1:8787/rss/hackernews/top?limit=20'
+
+# Add to your reader
+# https://news.ycombinator.com -> subscribe to http://<host>:8787/rss/hackernews/top
+```
+
+The RSS converter auto-detects common fields (`title`/`name`, `url`/`link`,
+`description`/`summary`, and dates such as `date`, `published_at`, `created_at`)
+and falls back to a `key: value` summary for anything else. Commands that require
+a browser/desktop session work too, as long as the daemon and Chrome extension
+are running.
+
 ## Authentication Strategies
 
 Each command uses a different authentication strategy:

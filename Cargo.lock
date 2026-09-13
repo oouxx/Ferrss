@@ -95,6 +95,7 @@ dependencies = [
  "autocli-external",
  "autocli-output",
  "autocli-pipeline",
+ "axum",
  "clap",
  "clap_complete",
  "colored",
@@ -104,6 +105,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "tower-http",
  "tracing",
  "tracing-subscriber",
 ]
