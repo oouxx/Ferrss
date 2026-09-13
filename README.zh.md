@@ -381,6 +381,7 @@ ferrss hackernews top --format md       # Markdown 表格
 # 启动服务（默认 http://127.0.0.1:8787）
 ferrss serve
 ferrss serve --host 0.0.0.0 --port 8080   # 暴露到局域网
+ferrss serve --browser-slots 3            # 最多同时跑 3 条浏览器命令
 ```
 
 | 接口 | 说明 |
@@ -395,9 +396,11 @@ ferrss serve --host 0.0.0.0 --port 8080   # 暴露到局域网
 
 查询参数使用与 CLI 完全相同的类型转换与校验规则，因此 `?limit=10` 会自动解析为整数。
 
-浏览器模式的命令（依赖 Chrome 扩展的那些）**串行执行**：扩展只有一个自动化窗口，
-并发请求会排队而不是直接失败。队列已满、或等待超过 4 分钟时返回 `503` 并带
-`Retry-After` 头；纯 HTTP 命令不受影响，仍然并行执行。
+浏览器模式的命令（依赖 Chrome 扩展的那些）按**槽位**并发执行：每个槽位是一个独立的
+Chrome 自动化窗口和标签页，因此不同站点可以并行（默认 2，可用 `--browser-slots N`
+调整），同一站点同时只跑一条命令（`--per-site-concurrency N`）。超出槽位数的请求进入
+长度为 8 的队列等待；队列已满或等待超过 4 分钟时返回 `503` 并带 `Retry-After` 头。
+纯 HTTP 命令不受任何限制，始终并行。
 
 ```bash
 # JSON

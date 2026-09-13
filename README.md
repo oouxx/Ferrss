@@ -381,6 +381,7 @@ Inoreader, …) can subscribe to a site directly.
 # Start the server (defaults to http://127.0.0.1:8787)
 ferrss serve
 ferrss serve --host 0.0.0.0 --port 8080   # expose on the LAN
+ferrss serve --browser-slots 3            # run up to 3 browser commands at once
 ```
 
 | Endpoint | Description |
@@ -396,11 +397,14 @@ ferrss serve --host 0.0.0.0 --port 8080   # expose on the LAN
 Query parameters are coerced and validated with the same rules as the CLI, so
 `?limit=10` is parsed as an integer.
 
-Browser-driven commands (those using the Chrome extension) run **one at a time**:
-the extension owns a single automation window, so parallel requests are queued
-rather than failing. If the queue is full, or a request waits longer than four
-minutes, the server answers `503` with a `Retry-After` header. Commands that only
-use plain HTTP are never queued and keep running in parallel.
+Browser-driven commands (those using the Chrome extension) run in **slots**. Each
+slot is its own Chrome automation window and tab, so different sites execute in
+parallel — two by default (`--browser-slots N` or `FERRSS_SERVE_BROWSER_SLOTS`),
+while a single site is limited to one command at a time
+(`--per-site-concurrency N`). Requests beyond the slot count wait in a queue of
+eight; a full queue, or a wait longer than four minutes, answers `503` with a
+`Retry-After` header. Commands that only use plain HTTP are never gated and keep
+running in parallel.
 
 ```bash
 # JSON

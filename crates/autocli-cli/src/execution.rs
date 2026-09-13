@@ -32,13 +32,32 @@ pub async fn execute_command(
     cmd: &CliCommand,
     kwargs: HashMap<String, Value>,
 ) -> Result<Value, CliError> {
-    tracing::info!(site = %cmd.site, name = %cmd.name, "Executing command");
+    execute_command_in(cmd, kwargs, None).await
+}
+
+/// Like [`execute_command`], but pins the browser work to a named workspace.
+///
+/// The Chrome extension keeps one automation window per workspace, so handing
+/// every concurrent caller its own workspace is what makes browser commands
+/// safe to run in parallel. `None` keeps the shared `default` workspace, which
+/// is what the interactive CLI wants.
+pub async fn execute_command_in(
+    cmd: &CliCommand,
+    kwargs: HashMap<String, Value>,
+    workspace: Option<String>,
+) -> Result<Value, CliError> {
+    tracing::info!(
+        site = %cmd.site,
+        name = %cmd.name,
+        workspace = workspace.as_deref().unwrap_or("default"),
+        "Executing command"
+    );
 
     let timeout_secs = command_timeout(cmd);
 
     let result = tokio::time::timeout(
         std::time::Duration::from_secs(timeout_secs),
-        execute_command_inner(cmd, kwargs),
+        execute_command_inner(cmd, kwargs, workspace),
     )
     .await;
 
@@ -55,6 +74,7 @@ pub async fn execute_command(
 async fn execute_command_inner(
     cmd: &CliCommand,
     kwargs: HashMap<String, Value>,
+    workspace: Option<String>,
 ) -> Result<Value, CliError> {
     // Build step registry
     let mut registry = StepRegistry::new();
@@ -63,6 +83,9 @@ async fn execute_command_inner(
     if cmd.needs_browser() {
         // Browser session
         let mut bridge = BrowserBridge::new(daemon_port());
+        if let Some(ref ws) = workspace {
+            bridge = bridge.with_workspace(ws.clone());
+        }
         let page = bridge.connect().await?;
 
         // Pre-navigate to domain if set, but ONLY if the pipeline doesn't
@@ -92,8 +115,13 @@ async fn execute_command_inner(
             )))
         };
 
-        // Close the automation tab/window after command completes
-        let _ = page.close().await;
+        // Close the automation window after a one-shot CLI command. Callers
+        // that hold a pooled workspace keep it: the window is reused by the
+        // next request on that slot and reclaimed by the extension's idle
+        // timer once the slot goes quiet.
+        if workspace.is_none() {
+            let _ = page.close().await;
+        }
 
         result
     } else {

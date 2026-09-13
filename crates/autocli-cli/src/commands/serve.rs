@@ -29,12 +29,12 @@ use autocli_output::render;
 use serde_json::{json, Map, Value};
 use std::collections::HashMap;
 use std::str::FromStr;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::Semaphore;
 
 use crate::args::coerce_and_validate_args;
-use crate::execution::execute_command;
+use crate::execution::{env_compat, execute_command_in};
 
 #[derive(Clone)]
 struct AppState {
@@ -42,52 +42,144 @@ struct AppState {
     browser_gate: Arc<BrowserGate>,
 }
 
-/// How many requests may wait for the browser slot before load is shed.
+/// How many requests may wait for a browser slot before load is shed.
 const BROWSER_QUEUE_CAPACITY: usize = 8;
 
-/// How long a request may wait for the browser slot. Kept below the timeout of
+/// Concurrent browser commands used when nothing else is configured.
+const BROWSER_SLOTS_DEFAULT: usize = 2;
+
+/// Commands per site used when nothing else is configured.
+const PER_SITE_CONCURRENCY_DEFAULT: usize = 1;
+
+/// How long a request may wait for a browser slot. Kept below the timeout of
 /// any reverse proxy in front so callers get a clean 503 instead of a cut
 /// connection.
 const BROWSER_WAIT_TIMEOUT: Duration = Duration::from_secs(240);
 
-/// Serialises commands that drive the browser extension.
+/// Hands out named browser slots.
 ///
-/// The extension has exactly one automation window, so running two browser
-/// commands at once makes them fight over the same tab (the loser reports
-/// `No tab with id`). Instead of failing, extra requests wait for their turn;
-/// only a full wait queue or an expired wait is rejected.
+/// Every browser command runs in its own slot, and every slot is a distinct
+/// extension workspace: the extension keeps one automation window (and tab) per
+/// workspace, so slots execute in parallel instead of fighting over a single
+/// tab. Requests beyond the slot count wait in a bounded queue; commands that
+/// only use plain HTTP are never gated.
 struct BrowserGate {
-    /// One permit: a single browser command may run at a time.
-    run: Semaphore,
-    /// Bounds how many requests may be waiting for `run`.
+    /// One permit per slot.
+    slots: Semaphore,
+    /// Bounds how many requests may be waiting for a slot.
     queue: Semaphore,
+    /// Idle slot names, one per permit.
+    free_names: Mutex<Vec<String>>,
+    /// Per-site limit, so one site is not hammered in parallel.
+    per_site: Mutex<HashMap<String, Arc<Semaphore>>>,
+    per_site_limit: usize,
+    total_slots: usize,
 }
 
 impl BrowserGate {
-    fn new() -> Self {
+    fn new(slots: usize, per_site_limit: usize) -> Self {
+        let slots = slots.max(1);
         Self {
-            run: Semaphore::new(1),
+            slots: Semaphore::new(slots),
             queue: Semaphore::new(BROWSER_QUEUE_CAPACITY),
+            free_names: Mutex::new((0..slots).map(|i| format!("serve-{i}")).collect()),
+            per_site: Mutex::new(HashMap::new()),
+            per_site_limit: per_site_limit.max(1),
+            total_slots: slots,
         }
     }
 
-    async fn acquire(&self) -> Result<BrowserSlot<'_>, GateError> {
+    /// Resolve the slot count from the arguments, then the environment, then
+    /// the defaults.
+    fn from_env(slots: Option<usize>, per_site_limit: Option<usize>) -> Self {
+        let slots = slots
+            .or_else(|| env_compat("FERRSS_SERVE_BROWSER_SLOTS").and_then(|v| v.parse().ok()))
+            .unwrap_or(BROWSER_SLOTS_DEFAULT);
+        let per_site_limit = per_site_limit
+            .or_else(|| {
+                env_compat("FERRSS_SERVE_PER_SITE_CONCURRENCY").and_then(|v| v.parse().ok())
+            })
+            .unwrap_or(PER_SITE_CONCURRENCY_DEFAULT);
+        Self::new(slots, per_site_limit)
+    }
+
+    fn total_slots(&self) -> usize {
+        self.total_slots
+    }
+
+    fn slots_in_use(&self) -> usize {
+        self.total_slots - self.slots.available_permits()
+    }
+
+    fn queued(&self) -> usize {
+        BROWSER_QUEUE_CAPACITY - self.queue.available_permits()
+    }
+
+    async fn acquire(&self, site: &str) -> Result<BrowserSlot<'_>, GateError> {
+        // Join the bounded wait queue first so a burst cannot pile up.
         let queued = self.queue.try_acquire().map_err(|_| GateError::QueueFull)?;
-        match tokio::time::timeout(BROWSER_WAIT_TIMEOUT, self.run.acquire()).await {
-            Ok(Ok(running)) => Ok(BrowserSlot {
-                _queued: queued,
-                _running: running,
-            }),
-            Ok(Err(_)) => Err(GateError::Closed),
-            Err(_) => Err(GateError::Timeout),
-        }
+
+        let running = match tokio::time::timeout(BROWSER_WAIT_TIMEOUT, self.slots.acquire()).await {
+            Ok(Ok(permit)) => permit,
+            Ok(Err(_)) => return Err(GateError::Closed),
+            Err(_) => return Err(GateError::Timeout),
+        };
+
+        // Serialise per site: many readers can request the same feed at once,
+        // and upstreams react badly to parallel hits from one session.
+        let site_semaphore = {
+            let mut map = self.per_site.lock().expect("per-site map poisoned");
+            map.entry(site.to_string())
+                .or_insert_with(|| Arc::new(Semaphore::new(self.per_site_limit)))
+                .clone()
+        };
+        let site_permit = site_semaphore
+            .acquire_owned()
+            .await
+            .map_err(|_| GateError::Closed)?;
+
+        // Holding a slot guarantees a free name; take it last so an early
+        // return cannot leak the name.
+        let name = self
+            .free_names
+            .lock()
+            .expect("slot name list poisoned")
+            .pop()
+            .unwrap_or_else(|| "serve-?".to_string());
+
+        Ok(BrowserSlot {
+            gate: self,
+            _queued: queued,
+            _running: running,
+            _site: site_permit,
+            name,
+        })
     }
 }
 
-/// Holds the queue and run permits; both are released when dropped.
+/// Holds a slot's permits and its workspace name; everything is released and
+/// the name returned to the pool when dropped.
 struct BrowserSlot<'a> {
+    gate: &'a BrowserGate,
     _queued: tokio::sync::SemaphorePermit<'a>,
     _running: tokio::sync::SemaphorePermit<'a>,
+    _site: tokio::sync::OwnedSemaphorePermit,
+    name: String,
+}
+
+impl BrowserSlot<'_> {
+    /// Workspace name for this slot (`serve-0`, `serve-1`, ...).
+    fn name(&self) -> &str {
+        &self.name
+    }
+}
+
+impl Drop for BrowserSlot<'_> {
+    fn drop(&mut self) {
+        if let Ok(mut names) = self.gate.free_names.lock() {
+            names.push(std::mem::take(&mut self.name));
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -104,10 +196,17 @@ enum ExecuteError {
 }
 
 /// Run the REST/RSS server. Blocks until the process is terminated.
-pub async fn run(registry: Registry, host: String, port: u16) -> Result<(), CliError> {
+pub async fn run(
+    registry: Registry,
+    host: String,
+    port: u16,
+    browser_slots: Option<usize>,
+    per_site_concurrency: Option<usize>,
+) -> Result<(), CliError> {
+    let browser_gate = BrowserGate::from_env(browser_slots, per_site_concurrency);
     let state = AppState {
         registry: Arc::new(registry),
-        browser_gate: Arc::new(BrowserGate::new()),
+        browser_gate: Arc::new(browser_gate),
     };
 
     let cors = tower_http::cors::CorsLayer::new()
@@ -136,6 +235,12 @@ pub async fn run(registry: Registry, host: String, port: u16) -> Result<(), CliE
     let commands = state.registry.command_count();
     eprintln!("ferrss serve listening on http://{addr}");
     eprintln!("  {sites} sites, {commands} commands");
+    eprintln!(
+        "  browser: {} concurrent slot(s), {} command(s) per site, {} queue",
+        state.browser_gate.total_slots(),
+        state.browser_gate.per_site_limit,
+        BROWSER_QUEUE_CAPACITY
+    );
     eprintln!("  JSON: http://{addr}/api/run/<site>/<command>");
     eprintln!("  RSS:  http://{addr}/rss/<site>/<command>");
 
@@ -147,11 +252,18 @@ pub async fn run(registry: Registry, host: String, port: u16) -> Result<(), CliE
 
 // ── Handlers ────────────────────────────────────────────────────
 
-async fn health_handler() -> impl IntoResponse {
+async fn health_handler(State(state): State<AppState>) -> impl IntoResponse {
+    let gate = &state.browser_gate;
     Json(json!({
         "status": "ok",
         "name": "ferrss",
         "version": env!("CARGO_PKG_VERSION"),
+        "browser_slots": {
+            "total": gate.total_slots(),
+            "in_use": gate.slots_in_use(),
+            "queued": gate.queued(),
+            "per_site": gate.per_site_limit,
+        },
     }))
 }
 
@@ -337,10 +449,14 @@ async fn execute_with_params(
     // single automation window, so concurrent requests clobber each other's
     // tab. Wait for the slot instead of failing; nothing is held for
     // HTTP-only commands.
-    let _browser_slot = if cmd.needs_browser() {
-        match state.browser_gate.acquire().await {
+    let browser_slot = if cmd.needs_browser() {
+        match state.browser_gate.acquire(&cmd.site).await {
             Ok(slot) => {
-                tracing::debug!(command = %cmd.full_name(), "acquired browser slot");
+                tracing::debug!(
+                    command = %cmd.full_name(),
+                    slot = slot.name(),
+                    "acquired browser slot"
+                );
                 Some(slot)
             }
             Err(e) => {
@@ -360,7 +476,13 @@ async fn execute_with_params(
         }
     }
     let kwargs = coerce_and_validate_args(&cmd.args, &raw).map_err(ExecuteError::Command)?;
-    execute_command(cmd, kwargs).await.map_err(ExecuteError::Command)
+
+    // Each slot is its own extension workspace, i.e. its own automation window
+    // and tab, which is what lets browser commands run in parallel.
+    let workspace = browser_slot.as_ref().map(|slot| slot.name().to_string());
+    execute_command_in(cmd, kwargs, workspace)
+        .await
+        .map_err(ExecuteError::Command)
 }
 
 fn command_schema(cmd: &CliCommand) -> Value {
@@ -777,47 +899,87 @@ fn civil_from_days(z: i64) -> (i64, i64, i64) {
 #[cfg(test)]
 mod browser_gate_tests {
     use super::*;
-    use std::sync::atomic::{AtomicUsize, Ordering};
 
     #[tokio::test]
-    async fn serialises_browser_access() {
-        let gate = BrowserGate::new();
+    async fn slots_run_in_parallel() {
+        let gate = BrowserGate::new(2, 1);
 
-        let held = gate.acquire().await.expect("first acquire succeeds");
+        let first = gate.acquire("a").await.expect("slot 1");
+        let second = gate.acquire("b").await.expect("slot 2");
+        assert_eq!(gate.slots_in_use(), 2);
+        assert_ne!(first.name(), second.name(), "each slot needs its own workspace");
 
-        // While a browser command is running, the next one waits instead of
-        // failing.
-        let waiting = tokio::time::timeout(Duration::from_millis(50), gate.acquire()).await;
-        assert!(waiting.is_err(), "second acquire must not complete while the first is held");
+        // Both slots are taken: the next request waits instead of failing.
+        let waiting = tokio::time::timeout(Duration::from_millis(50), gate.acquire("c")).await;
+        assert!(waiting.is_err(), "third acquire must wait for a free slot");
+
+        drop(first);
+        assert_eq!(gate.slots_in_use(), 1);
+        let third = tokio::time::timeout(Duration::from_secs(1), gate.acquire("c")).await;
+        assert!(third.is_ok(), "slot must be reusable after release");
+    }
+
+    #[tokio::test]
+    async fn slot_names_are_reused_not_leaked() {
+        let gate = BrowserGate::new(2, 1);
+        for _ in 0..5 {
+            let a = gate.acquire("a").await.expect("slot");
+            let b = gate.acquire("b").await.expect("slot");
+            assert_eq!(gate.free_names.lock().unwrap().len(), 0);
+            drop(a);
+            drop(b);
+            assert_eq!(gate.free_names.lock().unwrap().len(), 2, "names must return to the pool");
+        }
+    }
+
+    #[tokio::test]
+    async fn same_site_is_serialised() {
+        let gate = BrowserGate::new(2, 1);
+
+        let held = gate.acquire("bilibili").await.expect("slot");
+        // A second slot is free, but the same site must still wait.
+        let waiting =
+            tokio::time::timeout(Duration::from_millis(50), gate.acquire("bilibili")).await;
+        assert!(waiting.is_err(), "same site must not run twice at once");
+
+        // A different site is unaffected.
+        let other = tokio::time::timeout(Duration::from_millis(200), gate.acquire("zhihu")).await;
+        assert!(other.is_ok(), "other sites must keep running in parallel");
 
         drop(held);
+        let after =
+            tokio::time::timeout(Duration::from_secs(1), gate.acquire("bilibili")).await;
+        assert!(after.is_ok(), "site must be usable again once the holder finishes");
+    }
 
-        // Once the first command finishes, the waiter gets the slot.
-        let after_release = tokio::time::timeout(Duration::from_secs(1), gate.acquire()).await;
-        assert!(after_release.is_ok(), "slot must be usable after the holder is dropped");
+    #[tokio::test]
+    async fn per_site_limit_is_configurable() {
+        let gate = BrowserGate::new(3, 2);
+        let a = gate.acquire("v2ex").await.expect("slot");
+        let b = gate.acquire("v2ex").await.expect("second slot for the same site");
+        let waiting = tokio::time::timeout(Duration::from_millis(50), gate.acquire("v2ex")).await;
+        assert!(waiting.is_err(), "limit of 2 must block the third");
+        drop(a);
+        drop(b);
     }
 
     #[tokio::test]
     async fn shed_load_when_wait_queue_is_full() {
-        let gate = Arc::new(BrowserGate::new());
-        let held = gate.acquire().await.expect("holds the run slot");
+        let gate = Arc::new(BrowserGate::new(1, 1));
+        let held = gate.acquire("a").await.expect("holds the only slot");
 
         let mut waiters = Vec::new();
         for _ in 0..BROWSER_QUEUE_CAPACITY {
             let gate = gate.clone();
             waiters.push(tokio::spawn(async move {
-                // Hold the slot until the test drops the task, so the queue
-                // stays full.
-                let slot = gate.acquire().await;
+                let slot = gate.acquire("site").await;
                 std::future::pending::<()>().await;
                 drop(slot);
             }));
         }
         tokio::time::sleep(Duration::from_millis(100)).await;
 
-        // The run slot is held and the wait queue is full: new work is shed
-        // immediately rather than piling up.
-        match gate.acquire().await {
+        match gate.acquire("b").await {
             Err(GateError::QueueFull) => {}
             Err(other) => panic!("expected QueueFull, got {other:?}"),
             Ok(_) => panic!("expected QueueFull, got a slot"),
@@ -830,20 +992,12 @@ mod browser_gate_tests {
     }
 
     #[tokio::test]
-    async fn queue_slots_are_released_after_use() {
-        let gate = BrowserGate::new();
-        let peak = Arc::new(AtomicUsize::new(0));
-        let running = Arc::new(AtomicUsize::new(0));
-
-        for _ in 0..(BROWSER_QUEUE_CAPACITY * 3) {
-            let slot = gate.acquire().await.expect("queue slot available");
-            let now = running.fetch_add(1, Ordering::SeqCst) + 1;
-            peak.fetch_max(now, Ordering::SeqCst);
-            running.fetch_sub(1, Ordering::SeqCst);
-            drop(slot);
-        }
-
-        assert_eq!(peak.load(Ordering::SeqCst), 1, "only one browser command may run at a time");
+    async fn defaults_are_sane() {
+        let gate = BrowserGate::new(0, 0);
+        assert_eq!(gate.total_slots(), 1, "slot count must be at least 1");
+        assert_eq!(gate.per_site_limit, 1, "per-site limit must be at least 1");
+        assert_eq!(gate.slots_in_use(), 0);
+        assert_eq!(gate.queued(), 0);
     }
 }
 

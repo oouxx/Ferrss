@@ -152,6 +152,18 @@ fn build_cli(registry: &Registry, external_clis: &[ExternalCli]) -> Command {
                         .long("host")
                         .default_value("127.0.0.1")
                         .help("Host/interface to bind (default: 127.0.0.1; use 0.0.0.0 to expose)"),
+                )
+                .arg(
+                    Arg::new("browser-slots")
+                        .long("browser-slots")
+                        .value_name("N")
+                        .help("Concurrent browser commands / Chrome tabs (default: 2, env FERRSS_SERVE_BROWSER_SLOTS)"),
+                )
+                .arg(
+                    Arg::new("per-site-concurrency")
+                        .long("per-site-concurrency")
+                        .value_name("N")
+                        .help("Commands allowed per site at once (default: 1, env FERRSS_SERVE_PER_SITE_CONCURRENCY)"),
                 ),
         )
         .subcommand(
@@ -518,7 +530,21 @@ async fn main() {
                     .get_one::<String>("host")
                     .cloned()
                     .unwrap_or_else(|| "127.0.0.1".to_string());
-                if let Err(e) = serve::run(registry.clone(), host, port).await {
+                let browser_slots = site_matches
+                    .get_one::<String>("browser-slots")
+                    .and_then(|s| s.parse().ok());
+                let per_site_concurrency = site_matches
+                    .get_one::<String>("per-site-concurrency")
+                    .and_then(|s| s.parse().ok());
+                if let Err(e) = serve::run(
+                    registry.clone(),
+                    host,
+                    port,
+                    browser_slots,
+                    per_site_concurrency,
+                )
+                .await
+                {
                     print_error(&e);
                     std::process::exit(1);
                 }

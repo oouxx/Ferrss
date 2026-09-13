@@ -17,11 +17,25 @@ const EXTENSION_POLL_INTERVAL: Duration = Duration::from_millis(500);
 /// The daemon runs as a detached background process with its own idle-shutdown lifecycle.
 pub struct BrowserBridge {
     port: u16,
+    workspace: String,
 }
 
 impl BrowserBridge {
     pub fn new(port: u16) -> Self {
-        Self { port }
+        Self {
+            port,
+            workspace: "default".to_string(),
+        }
+    }
+
+    /// Pin this bridge to a named workspace.
+    ///
+    /// The extension keeps one automation window per workspace, so giving each
+    /// concurrent caller its own workspace is what lets browser commands run in
+    /// parallel instead of fighting over one tab.
+    pub fn with_workspace(mut self, workspace: impl Into<String>) -> Self {
+        self.workspace = workspace.into();
+        self
     }
 
     /// Create a bridge using the default port.
@@ -62,7 +76,7 @@ impl BrowserBridge {
 
         // Step 3: Wait up to 5s for extension to connect
         if self.poll_extension(&client, EXTENSION_INITIAL_WAIT, false).await {
-            return Ok(Arc::new(DaemonPage::new(client, "default")));
+            return Ok(Arc::new(DaemonPage::new(client, self.workspace.clone())));
         }
 
         // Step 4: Extension not connected — try to wake up Chrome
@@ -72,7 +86,7 @@ impl BrowserBridge {
 
         // Step 5: Wait remaining 25s with progress
         if self.poll_extension(&client, EXTENSION_REMAINING_WAIT, true).await {
-            return Ok(Arc::new(DaemonPage::new(client, "default")));
+            return Ok(Arc::new(DaemonPage::new(client, self.workspace.clone())));
         }
 
         warn!("Chrome extension is not connected to the daemon");
