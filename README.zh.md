@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <a href="https://autocli.ai"><b>https://autocli.ai</b></a> — AI 驱动的配置市场 & 云端 API
+  <a href="https://github.com/oouxx/Ferrss"><b>github.com/oouxx/Ferrss</b></a> — 本地优先，无需云端账号
 </p>
 
 ---
@@ -17,8 +17,8 @@
 
 ### v0.3.2
 - **Chrome 扩展选择器工具** — 只需选择你需要的核心数据，可视化精准选取页面元素，构建精确的 CSS 选择器定位目标内容
-- **基于 AutoCLI.ai 的 AI 生成** — 基于你选择的数据，AI 自动扩展并发现关联字段，生成完整的数据抓取规则
-- **本地 + 云端无缝同步** — 生成的适配器自动保存到本地并同步至 AutoCLI.ai，即刻可用
+- **AI 智能生成** — 基于你选择的数据，AI 自动扩展并发现关联字段，生成完整的数据抓取规则
+- **使用你自己的大模型** — 生成的适配器保存到 `~/.ferrss/adapters/` 并自动加载，无需账号或云端服务
 
 ---
 
@@ -27,7 +27,7 @@
 基于 [OpenCLI](https://github.com/jackwener/opencli)（TypeScript）用 **纯 Rust 完整重写**。功能对等，**最高快 12 倍**，**内存省 10 倍**，**单文件 4.7MB**，零运行时依赖。
 
 **OpenClaw/Agent 的最佳搭档** —— 赋予你的 AI Agent 触达全网信息的能力，一行命令获取 55+ 站点的实时数据。
-**为 AI Agent 而生：** 在 `AGENT.md` 或 `.cursorrules` 中配置 `ferrss list`，AI 即可自动发现所有可用工具。注册你的本地 CLI（`ferrss register mycli`），AI 就能完美调用你的所有工具。
+**为 AI Agent 而生：** 在 `AGENT.md` 或 `.cursorrules` 中让 Agent 调用 `ferrss --help`（全部站点）和 `ferrss <site> --help`（单站命令），它就能自行发现所有可用工具。本地 CLI 工具通过 `~/.ferrss/external-clis.yaml` 声明，你自己的命令也会变成 `ferrss` 的子命令。
 
 
 ## 🚀 性能对比
@@ -57,7 +57,7 @@
 - **浏览器会话复用** —— 通过 Chrome 扩展复用已登录状态，无需管理 token
 - **声明式 YAML Pipeline** —— 用 YAML 描述数据抓取流程，零代码新增适配器
 - **AI 原生发现** —— `explore` 分析网站 API、`generate` 一键生成适配器、`cascade` 探测认证策略
-- **AI 智能生成** —— `generate --ai` 使用大模型分析任意网站，自动生成适配器，通过 [autocli.ai](https://autocli.ai) 云端共享
+- **AI 智能生成** —— `generate --ai` 使用你自己的大模型（本地或云端）分析任意网站，自动生成适配器
 - **下载媒体和文章** —— 视频下载（yt-dlp）、文章导出为 Markdown 并本地化配图
 - **外部 CLI 透传** —— 集成 GitHub CLI、Docker、Kubernetes 等工具
 - **多格式输出** —— table、JSON、YAML、CSV、Markdown
@@ -172,49 +172,51 @@ ferrss completion fish > ~/.config/fish/completions/ferrss.fish
 
 ## AI 命令
 
-> **由 [autocli.ai](https://autocli.ai) 提供支持** —— 获取 API Token，与社区共享适配器，让 AI 为任意网站生成适配器。
+适配器由你自己的大模型在本地生成 —— 无需账号，也不依赖云端服务。把 `ferrss` 指向任意 OpenAI 兼容接口即可，包括本地的 Ollama 或 LM Studio。
 
-### 第一步：认证
+### 第一步：配置大模型
 
 ```bash
-ferrss auth
+# 本地 Ollama
+ferrss config-llm --provider ollama --model llama3
+
+# 或任意 OpenAI 兼容接口
+ferrss config-llm --provider https://api.openai.com/v1/chat/completions --model gpt-4o --api-key sk-...
 ```
 
-执行后会：
-1. 自动打开浏览器到 [https://autocli.ai/get-token](https://autocli.ai/get-token)
-2. 提示你输入 Token
-3. 与服务器验证 Token 合法性
-4. 保存到 `~/.ferrss/config.json`
+已知 provider 名称（`openai`、`deepseek`、`qwen`、`moonshot`、`zhipu`、`groq`、`mistral`、`ollama`、`lmstudio`）会自动展开为默认接口；以 `http` 开头的值直接当作接口地址使用。配置保存在 `~/.ferrss/config.json`，`--provider` / `--model` / `--api-key` 可在单次调用时覆盖。
 
-### 第二步：通过 Chrome 浏览器插件，精准选择特定网站上你需要的数据，点击生成按钮后，AI 会自动分析并生成页面，扩展相关数据并生成适配器：
+### 第二步：生成适配器
+
+可以直接在命令行生成：
+
+```bash
+ferrss generate https://www.example.com --goal hot --ai
+```
+
+…也可以通过 Chrome 浏览器插件，精准选择特定网站上你需要的数据，点击生成按钮后，AI 会自动分析并生成页面，扩展相关数据并生成适配器：
 
 <p align="center">
   <img src="assets/chrome_extension_demo.jpg" alt="ferrss" width="800" />
 </p>
 
-生成完成后，就可以使用 ferrss 使用新生成的指令检索需要的数据了。
+适配器会写入 `~/.ferrss/adapters/<site>/<name>.yaml` 并被自动发现，生成完成后即可用新命令检索需要的数据：
 
 <p align="center">
-  <img src="assets/autocli_use.jpg" alt="ferrss" width="800" />
+  <img src="assets/ferrss_use.jpg" alt="ferrss" width="800" />
 </p>
-
-### 第三步：搜索已有适配器
-
-```bash
-# 通过 URL 搜索
-ferrss search https://www.example.com
-
-# 直接输入域名也可以（自动补全 https://）
-ferrss search example.com
-```
-
-从 [autocli.ai](https://autocli.ai) 搜索社区共享的适配器。从交互式列表中选择后，自动下载并保存到本地，即可使用。
 
 ### 环境变量
 
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
-| `FERRSS_API_BASE` | 覆盖服务器地址 | `https://www.autocli.ai` |
+| `FERRSS_DAEMON_PORT` | 本地浏览器守护进程端口 | `19925` |
+| `FERRSS_CDP_ENDPOINT` | 直接连接已有的 CDP 端点，而非启动 Chrome | 未设置 |
+| `FERRSS_BROWSER_COMMAND_TIMEOUT` | 单条命令的浏览器超时（秒） | 命令默认值，否则 `60` |
+| `FERRSS_VERBOSE` | 强制输出 debug 日志（等同 `-v`） | 未设置 |
+| `RUST_LOG` | tracing 日志过滤 | `warn` |
+
+旧变量名 `AUTOCLI_*` 仍会作为回退读取。
 
 ## 内置命令
 
@@ -287,9 +289,9 @@ ferrss search example.com
 两种方式自动生成适配器：
 
 ```bash
-# 🤖 AI 驱动（推荐）：大模型分析页面并生成适配器
+# 🤖 AI 驱动（推荐）：你自己的大模型分析页面并生成适配器
 ferrss generate https://www.example.com --goal hot --ai
-# 优先从 autocli.ai 搜索已有适配器，未找到则使用 AI 生成
+# 保存到 ~/.ferrss/adapters/<site>/<name>.yaml，下次运行自动加载
 
 # 🔧 规则驱动：无需 AI 的启发式分析
 ferrss generate https://www.example.com --goal hot

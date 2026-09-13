@@ -40,6 +40,9 @@ impl DaemonClient {
             let result = self
                 .client
                 .post(&url)
+                .header("X-Ferrss", "1")
+                // Keep the legacy header too: a daemon started by an older
+                // `autocli` binary only accepts X-AutoCLI.
                 .header("X-AutoCLI", "1")
                 .json(&cmd)
                 .send()
@@ -123,7 +126,15 @@ impl DaemonClient {
     pub async fn is_extension_connected(&self) -> bool {
         let url = format!("{}/status", self.base_url);
         // Original OpenCLI requires X-AutoCLI header on all requests
-        match self.client.get(&url).header("X-AutoCLI", "1").send().await {
+        // Older daemons only accept X-AutoCLI, so send both headers.
+        match self
+            .client
+            .get(&url)
+            .header("X-Ferrss", "1")
+            .header("X-AutoCLI", "1")
+            .send()
+            .await
+        {
             Ok(resp) if resp.status().is_success() => {
                 if let Ok(json) = resp.json::<Value>().await {
                     // Our format: {"extension": bool}

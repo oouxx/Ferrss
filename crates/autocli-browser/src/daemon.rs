@@ -141,11 +141,16 @@ async fn command_handler(
     headers: HeaderMap,
     Json(cmd): Json<DaemonCommand>,
 ) -> impl IntoResponse {
-    // Security: require X-AutoCLI or X-OpenCLI header (backward compatible)
-    if !headers.contains_key("x-autocli") && !headers.contains_key("x-opencli") {
+    // Security: require a known tool header.
+    // `x-autocli` (previous name) and `x-opencli` (original name) stay accepted so
+    // that already-installed browser extensions and older CLIs keep working.
+    let has_known_header = ["x-ferrss", "x-autocli", "x-opencli"]
+        .iter()
+        .any(|name| headers.contains_key(*name));
+    if !has_known_header {
         return (
             StatusCode::FORBIDDEN,
-            Json(json!({ "error": "Missing X-AutoCLI header" })),
+            Json(json!({ "error": "Missing X-Ferrss header" })),
         );
     }
 

@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <a href="https://autocli.ai"><b>https://autocli.ai</b></a> — AI 駆動アダプターマーケットプレイス＆クラウド API
+  <a href="https://github.com/oouxx/Ferrss"><b>github.com/oouxx/Ferrss</b></a> — ローカルファースト、クラウドアカウント不要
 </p>
 
 ---
@@ -17,8 +17,8 @@
 
 ### v0.3.2
 - **Chrome 拡張セレクターツール** — 必要なコアデータを選ぶだけで、ページ要素をビジュアルに精確選択し、CSS セレクターで目的のコンテンツを正確にターゲット
-- **AutoCLI.ai による AI 生成** — 選択したデータを基に、AI が関連フィールドを自動拡張・発見し、完全なスクレイピングルールを生成
-- **ローカル + クラウド同期** — 生成されたアダプターは自動保存＆ AutoCLI.ai に同期、即座に利用可能
+- **AI による生成** — 選択したデータを基に、AI が関連フィールドを自動拡張・発見し、完全なスクレイピングルールを生成
+- **自分の LLM で動作** — 生成されたアダプターは `~/.ferrss/adapters/` に保存され自動で読み込まれます。アカウントもクラウドサービスも不要
 
 ---
 
@@ -27,7 +27,7 @@
 [OpenCLI](https://github.com/jackwener/opencli)（TypeScript）を **純 Rust で完全リライト**。機能は同等で、**最大12倍高速**、**メモリ使用量1/10**、**単一ファイル 4.7MB**、ランタイム依存ゼロ。
 
 **OpenClaw/Agent の最良のパートナー** —— AI Agent にウェブ全体の情報にアクセスする能力を与え、1コマンドで55以上のサイトのリアルタイムデータを取得。
-**AI Agentのために設計：** `AGENT.md` や `.cursorrules` に `ferrss list` を設定すれば、AI が利用可能な全ツールを自動的に発見できます。ローカル CLI を登録（`ferrss register mycli`）すれば、AI があなたの全ツールを完璧に呼び出せます。
+**AI Agentのために設計：** `AGENT.md` や `.cursorrules` から `ferrss --help`（全サイト）と `ferrss <site> --help`（サイト別コマンド）を呼ばせれば、AI が利用可能な全ツールを自力で発見できます。ローカル CLI は `~/.ferrss/external-clis.yaml` に宣言でき、自分のコマンドも `ferrss` のサブコマンドになります。
 
 
 ## 🚀 パフォーマンス比較
@@ -57,7 +57,7 @@
 - **ブラウザセッション再利用** —— Chrome 拡張機能でログイン済み状態を再利用、トークン管理不要
 - **宣言型 YAML Pipeline** —— YAML でデータ取得フローを記述、コードゼロで新しいアダプターを追加
 - **AI ネイティブディスカバリー** —— `explore` でサイト API を分析、`generate` で1コマンドでアダプターを自動生成、`cascade` で認証ストラテジーを探索
-- **AI パワード生成** —— `generate --ai` で LLM がWebサイトを分析し、アダプターを自動生成。[autocli.ai](https://autocli.ai) でクラウド共有
+- **AI パワード生成** —— `generate --ai` で自分の LLM（ローカル/ホスト型）がWebサイトを分析し、アダプターを自動生成
 - **メディア＆記事ダウンロード** —— 動画ダウンロード（yt-dlp）、記事を Markdown にエクスポート＋画像のローカル保存
 - **外部 CLI パススルー** —— GitHub CLI、Docker、Kubernetes などのツールを統合
 - **複数出力フォーマット** —— table、JSON、YAML、CSV、Markdown
@@ -161,49 +161,51 @@ ferrss completion fish > ~/.config/fish/completions/ferrss.fish
 
 ## AI コマンド
 
-> **[autocli.ai](https://autocli.ai) によるサポート** — API トークンを取得し、コミュニティとアダプターを共有し、AI で任意のWebサイトのアダプターを生成。
+アダプターは自分の LLM でローカルに生成します — アカウントもクラウドサービスも不要です。`ferrss` を OpenAI 互換の任意のエンドポイント（ローカルの Ollama や LM Studio を含む）に向けるだけです。
 
-### ステップ 1：認証
+### ステップ 1：LLM を設定
 
 ```bash
-ferrss auth
+# ローカルの Ollama
+ferrss config-llm --provider ollama --model llama3
+
+# または任意の OpenAI 互換エンドポイント
+ferrss config-llm --provider https://api.openai.com/v1/chat/completions --model gpt-4o --api-key sk-...
 ```
 
-実行すると：
-1. ブラウザで [https://autocli.ai/get-token](https://autocli.ai/get-token) を自動的に開く
-2. トークンの入力を求める
-3. サーバーでトークンを検証
-4. `~/.ferrss/config.json` に保存
+既知の provider 名（`openai`、`deepseek`、`qwen`、`moonshot`、`zhipu`、`groq`、`mistral`、`ollama`、`lmstudio`）は既定のエンドポイントに展開され、`http` で始まる値はそのままエンドポイントとして使われます。設定は `~/.ferrss/config.json` に保存され、`--provider` / `--model` / `--api-key` で実行ごとに上書きできます。
 
-### ステップ 2：Chrome 拡張で必要なデータを正確に選択し、生成ボタンをクリックすると、AI が自動的にページを分析し、関連データを拡張してアダプターを生成します：
+### ステップ 2：アダプターを生成
+
+CLI から直接生成できます：
+
+```bash
+ferrss generate https://www.example.com --goal hot --ai
+```
+
+…または Chrome 拡張で必要なデータを正確に選択し、生成ボタンをクリックすると、AI が自動的にページを分析し、関連データを拡張してアダプターを生成します：
 
 <p align="center">
   <img src="assets/chrome_extension_demo.jpg" alt="ferrss" width="800" />
 </p>
 
-生成が完了すると、ferrss で新しく生成されたコマンドを使ってデータを取得できます。
+アダプターは `~/.ferrss/adapters/<site>/<name>.yaml` に保存され自動的に読み込まれるため、生成後すぐに新しいコマンドでデータを取得できます：
 
 <p align="center">
-  <img src="assets/autocli_use.jpg" alt="ferrss" width="800" />
+  <img src="assets/ferrss_use.jpg" alt="ferrss" width="800" />
 </p>
-
-### ステップ 3：既存アダプターを検索
-
-```bash
-# URL で検索
-ferrss search https://www.example.com
-
-# ドメイン名でもOK（自動的に https:// を補完）
-ferrss search example.com
-```
-
-[autocli.ai](https://autocli.ai) でコミュニティ共有アダプターを検索。インタラクティブリストから選択すると、自動的にダウンロードしてローカルに保存 — すぐに使用可能。
 
 ### 環境変数
 
 | 変数 | 説明 | デフォルト |
 |------|------|-----------|
-| `FERRSS_API_BASE` | サーバー URL を上書き | `https://www.autocli.ai` |
+| `FERRSS_DAEMON_PORT` | ローカルブラウザデーモンのポート | `19925` |
+| `FERRSS_CDP_ENDPOINT` | Chrome を起動せず既存の CDP エンドポイントに接続 | 未設定 |
+| `FERRSS_BROWSER_COMMAND_TIMEOUT` | コマンドごとのブラウザタイムアウト（秒） | コマンド既定値、なければ `60` |
+| `FERRSS_VERBOSE` | debug ログを強制（`-v` と同じ） | 未設定 |
+| `RUST_LOG` | tracing フィルタ | `warn` |
+
+旧名の `AUTOCLI_*` もフォールバックとして引き続き読み込まれます。
 
 ## 組み込みコマンド
 
@@ -276,9 +278,9 @@ ferrss search example.com
 アダプターを自動生成する2つの方法：
 
 ```bash
-# 🤖 AI 駆動（推奨）：LLM がページを分析しアダプターを生成
+# 🤖 AI 駆動（推奨）：自分の LLM がページを分析しアダプターを生成
 ferrss generate https://www.example.com --goal hot --ai
-# autocli.ai で既存アダプターを先に検索し、見つからなければ AI で生成
+# ~/.ferrss/adapters/<site>/<name>.yaml に保存され、次回実行時に自動で読み込まれます
 
 # 🔧 ルールベース：AI なしのヒューリスティック分析
 ferrss generate https://www.example.com --goal hot

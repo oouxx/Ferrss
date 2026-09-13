@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <a href="https://autocli.ai"><b>https://autocli.ai</b></a> — AI-powered adapter marketplace & cloud API
+  <a href="https://github.com/oouxx/Ferrss"><b>github.com/oouxx/Ferrss</b></a> — local-first, no cloud account required
 </p>
 
 ---
@@ -17,8 +17,8 @@
 
 ### v0.3.2
 - **Chrome Extension Selector Tool** — Just select the core data you need, visually pick elements from any page and build precise CSS selectors to target specific content
-- **AI-Powered Generation via AutoCLI.ai** — Based on your selected data, AI automatically expands and discovers related fields, generating complete scraping rules
-- **Seamless Local + Cloud Sync** — Generated adapters are saved locally and synced to AutoCLI.ai, ready to use immediately
+- **AI-Powered Generation** — Based on your selected data, AI automatically expands and discovers related fields, generating complete scraping rules
+- **Runs on Your Own LLM** — Generated adapters are written to `~/.ferrss/adapters/` and picked up automatically; no account or cloud service involved
 
 ---
 
@@ -27,7 +27,7 @@ Blazing fast, memory-safe command-line tool — **Fetch information from any web
 A **complete rewrite in pure Rust** based on [OpenCLI](https://github.com/jackwener/opencli) (TypeScript). Feature-equivalent, **up to 12x faster**, **10x less memory**, **single 4.7MB binary**, zero runtime dependencies.
 
 **The perfect companion for OpenClaw/Agent** — Give your AI Agent the ability to reach information across the entire web, fetching real-time data from 55+ sites with a single command.
-**Built for AI Agents:** Configure `ferrss list` in `AGENT.md` or `.cursorrules`, and AI can automatically discover all available tools. Register your local CLI (`ferrss register mycli`), and AI can seamlessly invoke all your tools.
+**Built for AI Agents:** Point your agent at `ferrss --help` (every site) and `ferrss <site> --help` (that site's commands) from `AGENT.md` or `.cursorrules`, and it discovers all available tools by itself. Local CLI tools are declared in `~/.ferrss/external-clis.yaml`, which turns your own commands into `ferrss` subcommands.
 
 
 ## 🚀 Performance Comparison
@@ -57,7 +57,7 @@ A **complete rewrite in pure Rust** based on [OpenCLI](https://github.com/jackwe
 - **Browser session reuse** — Reuse logged-in sessions via Chrome extension, no need to manage tokens
 - **Declarative YAML Pipeline** — Describe data scraping workflows in YAML, add new adapters with zero code
 - **AI-native discovery** — `explore` analyzes website APIs, `generate` auto-creates adapters with one command, `cascade` probes authentication strategies
-- **AI-powered generation** — `generate --ai` uses LLM to analyze any website and create working adapters automatically, with cloud sharing via [autocli.ai](https://autocli.ai)
+- **AI-powered generation** — `generate --ai` uses your own LLM (local or hosted) to analyze any website and create a working adapter automatically
 - **Download media & articles** — Download videos (via yt-dlp), articles as Markdown with images localized
 - **External CLI passthrough** — Integrate GitHub CLI, Docker, Kubernetes, and other tools
 - **Multi-format output** — table, JSON, YAML, CSV, Markdown
@@ -172,49 +172,51 @@ ferrss completion fish > ~/.config/fish/completions/ferrss.fish
 
 ## AI Commands
 
-> **Powered by [autocli.ai](https://autocli.ai)** — Get your API token, share adapters with the community, and let AI generate adapters for any website.
+Adapters are generated locally with your own LLM — no account and no cloud service. Point `ferrss` at any OpenAI-compatible endpoint, including a local Ollama or LM Studio instance.
 
-### Step 1: Authenticate
+### Step 1: Configure the LLM
 
 ```bash
-ferrss auth
+# Local Ollama
+ferrss config-llm --provider ollama --model llama3
+
+# Or any OpenAI-compatible endpoint
+ferrss config-llm --provider https://api.openai.com/v1/chat/completions --model gpt-4o --api-key sk-...
 ```
 
-This will:
-1. Open your browser to [https://autocli.ai/get-token](https://autocli.ai/get-token)
-2. Prompt you to enter the token
-3. Verify the token with the server
-4. Save it to `~/.ferrss/config.json`
+Known provider names (`openai`, `deepseek`, `qwen`, `moonshot`, `zhipu`, `groq`, `mistral`, `ollama`, `lmstudio`) expand to their default endpoint; anything starting with `http` is used as-is. Settings are saved to `~/.ferrss/config.json`, and `--provider` / `--model` / `--api-key` override it per invocation.
 
-### Step 2: Use the Chrome Extension to precisely select the data you need from any website. Click the Generate button, and AI will automatically analyze the page, expand related data, and generate an adapter:
+### Step 2: Generate an adapter
+
+Either generate straight from the CLI:
+
+```bash
+ferrss generate https://www.example.com --goal hot --ai
+```
+
+…or use the Chrome Extension to precisely select the data you need from any website. Click the Generate button, and AI will automatically analyze the page, expand related data, and generate an adapter:
 
 <p align="center">
   <img src="assets/chrome_extension_demo.jpg" alt="ferrss" width="800" />
 </p>
 
-Once generation is complete, you can use ferrss with the newly generated command to retrieve the data you need.
+The adapter is written to `~/.ferrss/adapters/<site>/<name>.yaml` and discovered automatically, so you can use ferrss with the newly generated command right away to retrieve the data you need:
 
 <p align="center">
-  <img src="assets/autocli_use.jpg" alt="ferrss" width="800" />
+  <img src="assets/ferrss_use.jpg" alt="ferrss" width="800" />
 </p>
-
-### Step 3: Search Existing Adapters
-
-```bash
-# Search by URL
-ferrss search https://www.example.com
-
-# Domain name also works (auto-prepends https://)
-ferrss search example.com
-```
-
-Searches [autocli.ai](https://autocli.ai) for community-shared adapters matching the URL. Select one from the interactive list to download and save it locally — ready to use immediately.
 
 ### Environment Variables
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `FERRSS_API_BASE` | Override server URL | `https://www.autocli.ai` |
+| `FERRSS_DAEMON_PORT` | Port of the local browser daemon | `19925` |
+| `FERRSS_CDP_ENDPOINT` | Attach to an existing CDP endpoint instead of launching Chrome | unset |
+| `FERRSS_BROWSER_COMMAND_TIMEOUT` | Per-command browser timeout, in seconds | command default, else `60` |
+| `FERRSS_VERBOSE` | Force debug logging (same as `-v`) | unset |
+| `RUST_LOG` | Tracing filter | `warn` |
+
+The legacy `AUTOCLI_*` names are still honoured as a fallback.
 
 ## Built-in Commands
 
@@ -287,9 +289,9 @@ Run `ferrss --help` to see all available commands.
 Two approaches to auto-generate adapters:
 
 ```bash
-# 🤖 AI-powered (recommended): LLM analyzes page and generates adapter
+# 🤖 AI-powered (recommended): your own LLM analyzes the page and writes the adapter
 ferrss generate https://www.example.com --goal hot --ai
-# Searches autocli.ai for existing adapters first, then generates with AI if needed
+# Saved to ~/.ferrss/adapters/<site>/<name>.yaml and picked up automatically
 
 # 🔧 Rule-based: heuristic analysis without AI
 ferrss generate https://www.example.com --goal hot
